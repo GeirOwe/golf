@@ -25,7 +25,6 @@ class Player(db.Model):
 
 class Score(db.Model):
     """Score model representing a golf score entry.
-
     Attributes:
         id (int): Primary key for the score
         value (int): The actual score value
