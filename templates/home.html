@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <h1>Golf by Gary Owen</h1>
+    <form method="POST" action="{{ url_for('add_player') }}">
+        <div class="form-group">
+            <label for="player_name">Navn</label>
+            <input type="text" id="player_name" name="player_name" required>
+        </div>
+        <div class="form-group">
+            <label for="handicap">Hcp</label>
+            <input type="number" id="handicap" name="handicap" step="0.1" value="0">
+        </div>
+        <button type="submit">Ny spiller</button>
+    </form>
+
+    {% if players %}
+    <h2>Registered Players:</h2>
+    <ul>
+        {% for player in players %}
+            <li>
+                <h3>{{ player.name }} (HCP: {{ player.handicap }})</h3>
+            </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+{% endblock %}
