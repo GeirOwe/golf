@@ -88,3 +88,33 @@ rm instance/golf.db
 # Reinitialize database
 python init_db.py
 ```
+
+## Deployment to Render
+
+### Prerequisites
+- A Render account
+- Your code pushed to GitHub
+- Valid `requirements.txt`
+- `gunicorn` in requirements
+
+### Setup on Render
+1. Create New Web Service
+2. Connect your GitHub repository
+3. Configure service:
+   - Name: `golf-app`
+   - Environment: `Python`
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn app:app`
+
+### Environment Variables
+Set in Render dashboard:
+```bash
+PYTHON_VERSION=3.9.0
+FLASK_APP=app.py
+```
+
+### Database
+Render will create a new database in the `instance` folder during deployment.
+
+### Logs
+View application logs in Render dashboard for troubleshooting.
