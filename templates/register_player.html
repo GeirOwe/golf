@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Register Player{% endblock %}
+
+{% block content %}
+    <h1>Register New Player</h1>
+    <form method="POST" action="{{ url_for('add_player') }}">
+        <div class="form-group">
+            <label for="player_name">Name</label>
+            <input type="text" id="player_name" name="player_name" required>
+        </div>
+        <div class="form-group">
+            <label for="handicap">Handicap</label>
+            <input type="number" id="handicap" name="handicap" step="0.1" value="0">
+        </div>
+        <button type="submit">Register Player</button>
+    </form>
+    <a href="{{ url_for('home') }}" class="button">Back to Menu</a>
+{% endblock %}

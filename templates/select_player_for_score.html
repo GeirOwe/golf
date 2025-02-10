@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Select Player{% endblock %}
+
+{% block content %}
+    <h1>Select Player to Add Score</h1>
+    {% if players %}
+    <div class="player-selection">
+        {% for player in players %}
+        <a href="{{ url_for('add_score', player_id=player.id) }}" class="menu-item">
+            {{ player.name }}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No players registered yet.</p>
+    {% endif %}
+    <a href="{{ url_for('home') }}" class="button">Back to Menu</a>
+{% endblock %}

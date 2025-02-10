@@ -7,7 +7,33 @@
             font-family: Arial, sans-serif;
             margin: 40px;
             background-color: #f0f0f0;
+            font-size: 16px;  /* Base font size for the entire app */
         }
+        
+        /* Headings */
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 20px;
+            color: #333;
+            margin-top: 30px;
+        }
+
+        /* Forms and inputs */
+        input[type="text"],
+        input[type="number"],
+        button,
+        .button,
+        .menu-item,
+        label,
+        td,
+        th {
+            font-size: 16px;  /* Match body font size */
+        }
+
         .content {
             padding: 20px;
             background-color: white;
@@ -27,16 +53,81 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        input[type="number"] {
+            padding: 8px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
         button {
             padding: 8px 15px;
-            background-color: #4CAF50;
+            background-color: #6c757d;  /* Changed to grey */
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #5a6268;  /* Darker grey on hover */
+        }
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        .menu-item {
+            padding: 15px;
+            background-color: #6c757d;  /* Changed to grey */
+            color: white;
+            text-decoration: none;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .menu-item:hover {
+            background-color: #5a6268;  /* Darker grey on hover */
+        }
+        .player-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .player-table th, .player-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #6c757d;  /* Changed to grey */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .btn-delete {
+            background-color: #dc3545;
+        }
+        .btn-delete:hover {
+            background-color: #c82333;
+        }
+        .btn-update {
+            background-color: #6c757d;  /* Changed to grey */
+        }
+        .btn-update:hover {
+            background-color: #5a6268;  /* Darker grey on hover */
+        }
+        .delete-form {
+            display: inline;
+        }
+        .score-list {
+            margin-top: 20px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 30px;
         }
     </style>
 </head>

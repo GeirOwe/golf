@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Players List{% endblock %}
+
+{% block content %}
+    <h1>Registered Players</h1>
+    {% if players %}
+    <table class="player-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Current Handicap</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for player in players %}
+            <tr>
+                <td>{{ player.name }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('update_handicap', player_id=player.id) }}" class="handicap-form">
+                        <input type="number" name="handicap" value="{{ player.handicap }}" step="0.1">
+                        <button type="submit" class="btn-update">Update</button>
+                    </form>
+                </td>
+                <td>
+                    <a href="{{ url_for('add_score', player_id=player.id) }}" class="button">Add Score</a>
+                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this player?');">
+                        <button type="submit" class="btn-delete">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No players registered yet.</p>
+    {% endif %}
+    <a href="{{ url_for('home') }}" class="button">Back to Menu</a>
+{% endblock %}
