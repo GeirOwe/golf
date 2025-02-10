@@ -8,9 +8,20 @@ from models import db, Player, Score
 import os
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///golf.db"
+
+# Configure database
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", 
+    "sqlite:///instance/golf.db"
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Initialize database
 db.init_app(app)
+
+# Ensure database tables exist
+with app.app_context():
+    db.create_all()
 
 
 @app.route("/")
