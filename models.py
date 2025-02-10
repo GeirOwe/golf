@@ -1,14 +1,23 @@
-class Player:
-    def __init__(self, name, handicap=0):
-        self.name = name
-        self.handicap = handicap
-        self.scores = []
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timezone
 
-    def add_score(self, score):
-        self.scores.append(score)
+db = SQLAlchemy()
 
-    def get_total_score(self):
-        return sum(self.scores) if self.scores else 0
+class Player(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    handicap = db.Column(db.Float, nullable=False, default=0)
+    scores = db.relationship('Score', backref='player', lazy=True)
 
-    def get_average_score(self):
-        return sum(self.scores) / len(self.scores) if self.scores else 0
+    def __repr__(self):
+        return f'<Player {self.name}>'
+
+class Score(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    value = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.DateTime, nullable=False, 
+                    default=lambda: datetime.now(timezone.utc))
+    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+
+    def local_date(self):
+        return self.date.replace(tzinfo=timezone.utc).astimezone()

@@ -22,6 +22,9 @@
         {% for player in players %}
             <li>
                 <h3>{{ player.name }} (HCP: {{ player.handicap }})</h3>
+                {% if player.scores %}
+                    <p>Latest score: {{ player.scores[-1].value }} ({{ player.scores[-1].local_date().strftime('%Y-%m-%d %H:%M') }})</p>
+                {% endif %}
             </li>
         {% endfor %}
     </ul>
