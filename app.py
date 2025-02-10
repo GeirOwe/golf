@@ -8,82 +8,153 @@ from models import db, Player, Score
 import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///golf.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///golf.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
+
 
 @app.route("/")
 def home():
-    return render_template('home.html')
+    """Render the home page with menu options.
 
-@app.route("/register", methods=['GET'])
+    Returns:
+        Rendered home template
+    """
+    return render_template("home.html")
+
+
+@app.route("/register", methods=["GET"])
 def register_player():
-    return render_template('register_player.html')
+    """Render the player registration form.
 
-@app.route("/players", methods=['GET'])
+    Returns:
+        Rendered registration template
+    """
+    return render_template("register_player.html")
+
+
+@app.route("/players", methods=["GET"])
 def list_players():
-    players = Player.query.all()
-    return render_template('list_players.html', players=players)
+    """List all registered players.
 
-@app.route("/player/<int:player_id>/update_handicap", methods=['POST'])
+    Returns:
+        Rendered template with all players
+    """
+    players = Player.query.all()
+    return render_template("list_players.html", players=players)
+
+
+@app.route("/player/<int:player_id>/update_handicap", methods=["POST"])
 def update_handicap(player_id):
+    """Update a player's handicap.
+
+    Args:
+        player_id (int): ID of the player to update
+
+    Returns:
+        Redirect to player list
+    """
     player = Player.query.get_or_404(player_id)
-    new_handicap = request.form.get('handicap')
+    new_handicap = request.form.get("handicap")
     if new_handicap is not None:
         player.handicap = float(new_handicap)
         db.session.commit()
-    return redirect(url_for('list_players'))
+    return redirect(url_for("list_players"))
 
-@app.route("/player/<int:player_id>/delete", methods=['POST'])
+
+@app.route("/player/<int:player_id>/delete", methods=["POST"])
 def delete_player(player_id):
+    """Delete a player and all their scores.
+
+    Args:
+        player_id (int): ID of the player to delete
+
+    Returns:
+        Redirect to player list
+    """
     player = Player.query.get_or_404(player_id)
-    # Delete all scores associated with the player
     Score.query.filter_by(player_id=player.id).delete()
-    # Delete the player
     db.session.delete(player)
     db.session.commit()
-    return redirect(url_for('list_players'))
+    return redirect(url_for("list_players"))
 
-@app.route("/add_player", methods=['POST'])
+
+@app.route("/add_player", methods=["POST"])
 def add_player():
-    player_name = request.form.get('player_name')
-    handicap = request.form.get('handicap', 0)
+    """Add a new player to the database.
+
+    Returns:
+        Redirect to home page
+    """
+    player_name = request.form.get("player_name")
+    handicap = request.form.get("handicap", 0)
     if player_name:
         player = Player(name=player_name, handicap=float(handicap))
         db.session.add(player)
         db.session.commit()
-    return redirect(url_for('home'))
+    return redirect(url_for("home"))
 
-@app.route("/player/<int:player_id>/add_score", methods=['GET', 'POST'])
+
+@app.route("/player/<int:player_id>/add_score", methods=["GET", "POST"])
 def add_score(player_id):
+    """Add a score for the specified player.
+
+    Args:
+        player_id: Integer ID of the player
+
+    Returns:
+        Rendered template or redirect response
+    """
     player = Player.query.get_or_404(player_id)
-    
-    if request.method == 'POST':
-        score_value = request.form.get('score')
+
+    if request.method == "POST":
+        score_value = request.form.get("score")
         if score_value:
             score = Score(value=int(score_value), player_id=player.id)
             db.session.add(score)
             db.session.commit()
-            return redirect(url_for('add_score', player_id=player.id))
-    
-    return render_template('add_score.html', player=player)
+            return redirect(url_for("add_score", player_id=player.id))
+
+    return render_template("add_score.html", player=player)
+
 
 @app.route("/scores")
 def list_scores():
-    scores = Score.query.order_by(Score.date.desc()).all()
-    return render_template('list_scores.html', scores=scores)
+    """List all scores, ordered by date descending.
 
-@app.route("/score/<int:score_id>/delete", methods=['POST'])
+    Returns:
+        Rendered template with all scores
+    """
+    scores = Score.query.order_by(Score.date.desc()).all()
+    return render_template("list_scores.html", scores=scores)
+
+
+@app.route("/score/<int:score_id>/delete", methods=["POST"])
 def delete_score(score_id):
+    """Delete a specific score.
+
+    Args:
+        score_id (int): ID of the score to delete
+
+    Returns:
+        Redirect to scores list
+    """
     score = Score.query.get_or_404(score_id)
     db.session.delete(score)
     db.session.commit()
-    return redirect(url_for('list_scores'))
+    return redirect(url_for("list_scores"))
+
 
 @app.route("/select_player_for_score")
 def select_player_for_score():
+    """Display player selection screen for score entry.
+
+    Returns:
+        Rendered template with list of players
+    """
     players = Player.query.all()
-    return render_template('select_player_for_score.html', players=players)
+    return render_template("select_player_for_score.html", players=players)
+
 
 # Create database tables
 def init_db():
@@ -91,7 +162,8 @@ def init_db():
         db.create_all()
         print("Database tables created successfully")
 
-if __name__ == '__main__':
-    if not os.path.exists('instance/golf.db'):
+
+if __name__ == "__main__":
+    if not os.path.exists("instance/golf.db"):
         init_db()
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host="0.0.0.0", port=10000)
