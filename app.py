@@ -4,16 +4,20 @@
 # OBS: Your free instance will spin down with inactivity, which can delay requests by 50 seconds or more.
 
 from flask import Flask, render_template, request, redirect, url_for
-from models import db, Player, Score
 import os
+from models import db, Player, Score
+
+# Create instance directory with absolute path
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+DB_PATH = os.path.join(INSTANCE_DIR, 'golf.db')
+
+# Ensure instance directory exists with proper permissions
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+os.chmod(INSTANCE_DIR, 0o777)  # Full permissions for debugging
 
 app = Flask(__name__)
-
-# Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", 
-    "sqlite:///instance/golf.db"
-)
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize database
