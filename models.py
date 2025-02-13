@@ -56,6 +56,14 @@ class Score:
         self.value = value
         self.player_id = player_id
         self.date = date or datetime.now().isoformat()
+        self._player = None  # Cache for player object
+
+    @property
+    def player(self):
+        """Get the player associated with this score."""
+        if self._player is None:
+            self._player = Player.get_by_id(self.player_id)
+        return self._player
 
     @staticmethod
     def _next_id():

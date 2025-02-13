@@ -18,7 +18,7 @@
             {% for score in scores %}
             <tr>
                 <td>{{ score.formatted_date() }}</td>
-                <td>{{ score.player.name }}</td>
+                <td>{{ score.player.name if score.player else 'Ukjent spiller' }}</td>
                 <td>{{ score.value }}</td>
                 <td>
                     <form method="POST" action="{{ url_for('delete_score', score_id=score.id) }}" onsubmit="return confirm('Er du sikker på at du vil slette dette resultatet?');">

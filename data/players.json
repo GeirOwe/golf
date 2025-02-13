@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": 1,
+    "name": "geir owe",
+    "handicap": 6.6
+  },
+  {
+    "id": 2,
+    "name": "hansi",
+    "handicap": 11.2
+  }
+]
