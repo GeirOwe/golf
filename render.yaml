@@ -12,11 +12,8 @@ services:
       - key: FLASK_ENV
         value: production
       - key: INSTANCE_DIR
-        value: /var/data/instance
-      - key: DATABASE_URL
-        value: /var/data/instance/golf.db
+        value: /opt/render/project/src/instance
     disk:
-      name: data
-      mountPath: /var/data
+      name: golf-data
+      mountPath: /opt/render/project/src/instance
       sizeGB: 1
-      

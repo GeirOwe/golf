@@ -11,6 +11,12 @@ from models import db, Player, Score
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_DIR = os.getenv('INSTANCE_DIR', os.path.join(BASE_DIR, "instance"))
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+
+# Ensure directory permissions
+if os.path.exists(INSTANCE_DIR):
+    os.chmod(INSTANCE_DIR, 0o777)
+
 DB_PATH = os.getenv('DATABASE_URL', os.path.join(INSTANCE_DIR, "golf.db"))
 
 
@@ -33,16 +39,22 @@ app = create_app()
 
 def database_exists():
     """Check if database tables exist."""
-    with app.app_context():
-        inspector = inspect(db.engine)
-        return inspector.has_table("player") and inspector.has_table("score")
-
+    try:
+        with app.app_context():
+            inspector = inspect(db.engine)
+            return inspector.has_table("player") and inspector.has_table("score")
+    except Exception as e:
+        print(f"Database check failed: {e}")
+        return False
 
 # Create database tables if they don't exist
-if not database_exists():
-    with app.app_context():
-        db.create_all()
-        print("Database tables created successfully")
+with app.app_context():
+    if not database_exists():
+        try:
+            db.create_all()
+            print("Database tables created successfully")
+        except Exception as e:
+            print(f"Failed to create database: {e}")
 
 
 @app.route("/")
