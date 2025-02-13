@@ -6,6 +6,7 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
 from models import db, Player, Score
+from sqlalchemy import inspect
 
 # Create instance directory with absolute path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,9 +24,17 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Initialize database
 db.init_app(app)
 
-# Ensure database tables exist
-with app.app_context():
-    db.create_all()
+def database_exists():
+    """Check if database tables exist."""
+    with app.app_context():
+        inspector = inspect(db.engine)
+        return inspector.has_table("player") and inspector.has_table("score")
+
+# Only create tables if they don't exist
+if not database_exists():
+    with app.app_context():
+        db.create_all()
+        print("Database tables created successfully")
 
 
 @app.route("/")

@@ -3,7 +3,7 @@
 {% block title %}Select Player{% endblock %}
 
 {% block content %}
-    <h1>Select Player to Add Score</h1>
+    <h1>Velg spiller</h1>
     {% if players %}
     <div class="player-selection">
         {% for player in players %}
@@ -15,5 +15,5 @@
     {% else %}
     <p>No players registered yet.</p>
     {% endif %}
-    <a href="{{ url_for('home') }}" class="button">Back to Menu</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
 {% endblock %}

@@ -3,11 +3,11 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-    <h1>Golf by Gary Owen</h1>
+    <h1>Gutta på tur</h1>
     <div class="menu">
-        <a href="{{ url_for('register_player') }}" class="menu-item">Register New Player</a>
-        <a href="{{ url_for('list_players') }}" class="menu-item">View/Edit Players</a>
-        <a href="{{ url_for('select_player_for_score') }}" class="menu-item">Add Score</a>
-        <a href="{{ url_for('list_scores') }}" class="menu-item">View All Scores</a>
+        <a href="{{ url_for('register_player') }}" class="menu-item">Ny spiller</a>
+        <a href="{{ url_for('list_players') }}" class="menu-item">Spillere</a>
+        <a href="{{ url_for('select_player_for_score') }}" class="menu-item">Legg in score</a>
+        <a href="{{ url_for('list_scores') }}" class="menu-item">Score</a>
     </div>
 {% endblock %}

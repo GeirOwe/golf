@@ -3,17 +3,17 @@
 {% block title %}Register Player{% endblock %}
 
 {% block content %}
-    <h1>Register New Player</h1>
+    <h1>Ny spiller</h1>
     <form method="POST" action="{{ url_for('add_player') }}">
         <div class="form-group">
-            <label for="player_name">Name</label>
+            <label for="player_name">Navn</label>
             <input type="text" id="player_name" name="player_name" required>
         </div>
         <div class="form-group">
-            <label for="handicap">Handicap</label>
+            <label for="handicap">Hcp</label>
             <input type="number" id="handicap" name="handicap" step="0.1" value="0">
         </div>
-        <button type="submit">Register Player</button>
+        <button type="submit">Registrer</button>
     </form>
-    <a href="{{ url_for('home') }}" class="button">Back to Menu</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
 {% endblock %}
