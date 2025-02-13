@@ -5,26 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - Golf App</title>
     <style>
+        /* General styles */
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
             background-color: #f0f0f0;
-            font-size: 16px;  /* Base font size for the entire app */
-        }
-        
-        /* Headings */
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-        }
-        
-        h2 {
-            font-size: 20px;
-            color: #333;
-            margin-top: 30px;
+            font-size: 16px;
         }
 
-        /* Forms and inputs */
+        /* Typography */
+        h1 { font-size: 24px; margin-bottom: 20px; }
+        h2 { font-size: 20px; color: #333; margin-top: 30px; }
+
+        /* Form elements and text */
         input[type="text"],
         input[type="number"],
         button,
@@ -33,109 +26,64 @@
         label,
         td,
         th {
-            font-size: 16px;  /* Match body font size */
+            font-size: 16px;
         }
 
+        /* Layout */
         .content {
             padding: 20px;
             background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        input[type="text"] {
-            padding: 8px;
-            width: 200px;
-            border: 1px solid #ddd;
             border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        input[type="number"] {
-            padding: 8px;
-            width: 200px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-        button {
-            padding: 8px 15px;
-            background-color: #6c757d;  /* Changed to grey */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #5a6268;  /* Darker grey on hover */
-        }
-        .menu {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            max-width: 300px;
-            margin: 0 auto;
-        }
+
+        /* Menu and navigation */
         .menu-item {
-            padding: 15px;
-            background-color: #6c757d;  /* Changed to grey */
+            display: block;
+            background-color: #495057;
             color: white;
+            padding: 12px 20px;
             text-decoration: none;
+            border-radius: 4px;
+            margin: 10px 0;
             text-align: center;
-            border-radius: 5px;
-            width: auto;
         }
+
         .menu-item:hover {
-            background-color: #5a6268;  /* Darker grey on hover */
+            background-color: #343a40;
         }
+
+        /* Tables */
         .player-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        .player-table th, .player-table td {
-            padding: 10px;
+
+        .player-table th,
+        .player-table td {
             border: 1px solid #ddd;
+            padding: 8px;
             text-align: left;
         }
-        .button {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #6c757d;  /* Changed to grey */
-            color: white;
-            text-decoration: none;
-            border-radius: 5px;
-            margin-top: 20px;
-        }
-        .btn-delete {
-            background-color: red; /* Change delete button color to red */
-        }
-        .btn-delete:hover {
-            background-color: #c82333;
-        }
-        .btn-update {
-            background-color: #6c757d;  /* Changed to grey */
-        }
-        .btn-update:hover {
-            background-color: #5a6268;  /* Darker grey on hover */
-        }
-        .delete-form {
-            display: inline;
-        }
-        .score-list {
-            margin-top: 20px;
-        }
-        h2 {
-            color: #333;
-            margin-top: 30px;
+
+        .player-table th {
+            background-color: #f2f2f2;
         }
 
-        /* Standard action button size */
+        /* Buttons */
+        .button {
+            background-color: #6c757d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
         .action-btn {
-            width: 100px;  /* Fixed width for action buttons */
+            width: 100px;
             padding: 8px 15px;
             margin: 5px;
             background-color: #6c757d;
@@ -143,45 +91,21 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
             text-align: center;
         }
 
-        .player-selection {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-width: 300px;
-            margin: 20px auto;
+        .btn-delete {
+            background-color: red;
         }
 
-        .player-selection .menu-item {
-            background-color: #495057;  /* Darker grey for player buttons */
-            color: white;
-            padding: 12px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            text-align: center;
-            margin: 5px 0;
+        /* Forms */
+        .form-group {
+            margin-bottom: 15px;
         }
 
-        .player-selection .menu-item:hover {
-            background-color: #343a40;  /* Even darker on hover */
-        }
-
-        /* Keep navigation button lighter */
-        .button {
-            background-color: #6c757d;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 20px;
-            display: inline-block;
-        }
-
-        .button:hover {
-            background-color: #5a6268;
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
         }
     </style>
 </head>
