@@ -2,6 +2,7 @@ import os
 from app import create_app, database_exists
 from models import db
 
+
 # Create instance directory with absolute path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')

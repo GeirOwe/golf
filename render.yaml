@@ -19,3 +19,4 @@ services:
       name: data
       mountPath: /var/data
       sizeGB: 1
+      

@@ -13,6 +13,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_DIR = os.getenv('INSTANCE_DIR', os.path.join(BASE_DIR, "instance"))
 DB_PATH = os.getenv('DATABASE_URL', os.path.join(INSTANCE_DIR, "golf.db"))
 
+
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
