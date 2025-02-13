@@ -10,25 +10,22 @@ from models import db, Player, Score
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
-DB_PATH = os.path.join(INSTANCE_DIR, "golf.db")
-
+INSTANCE_DIR = os.getenv('INSTANCE_DIR', os.path.join(BASE_DIR, "instance"))
+DB_PATH = os.getenv('DATABASE_URL', os.path.join(INSTANCE_DIR, "golf.db"))
 
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+    
+    # Use SQLite for local development, but allow override for production
+    if DB_PATH.startswith('sqlite:///'):
+        app.config["SQLALCHEMY_DATABASE_URI"] = DB_PATH
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+    
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-    # Initialize database
     db.init_app(app)
-
-    # Create instance directory if it doesn't exist
-    os.makedirs(INSTANCE_DIR, exist_ok=True)
-    os.chmod(INSTANCE_DIR, 0o777)  # Full permissions for debugging
-
     return app
-
 
 app = create_app()
 
