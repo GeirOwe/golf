@@ -1,19 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Register Player{% endblock %}
+{% block title %}Registrer Spiller{% endblock %}
 
 {% block content %}
-    <h1>Ny spiller</h1>
+    <h1>Registrer Ny Spiller</h1>
     <form method="POST" action="{{ url_for('add_player') }}">
-        <div class="form-group">
-            <label for="player_name">Navn</label>
-            <input type="text" id="player_name" name="player_name" required>
-        </div>
-        <div class="form-group">
-            <label for="handicap">Hcp</label>
-            <input type="number" id="handicap" name="handicap" step="0.1" value="0">
-        </div>
-        <button type="submit">Registrer</button>
+        <label for="player_name">Spillernavn:</label>
+        <input type="text" id="player_name" name="player_name" required><br><br>
+        <label for="handicap">Handicap:</label>
+        <input type="number" id="handicap" name="handicap" step="0.1" value="0"><br><br>
+        <button type="submit" class="button">Registrer</button>
     </form>
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
 {% endblock %}

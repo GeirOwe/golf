@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Score List{% endblock %}
+{% block title %}Resultatliste{% endblock %}
 
 {% block content %}
-    <h1>Resultat</h1>
+    <h1>Resultatliste</h1>
     {% if scores %}
     <table class="player-table">
         <thead>
             <tr>
                 <th>Dato</th>
                 <th>Spiller</th>
-                <th>Score</th>
-                <th>..</th>
+                <th>Resultat</th>
+                <th>Handlinger</th>
             </tr>
         </thead>
         <tbody>
@@ -21,8 +21,8 @@
                 <td>{{ score.player.name }}</td>
                 <td>{{ score.value }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('delete_score', score_id=score.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this score?');">
-                        <button type="submit" class="btn-delete">Delete</button>
+                    <form method="POST" action="{{ url_for('delete_score', score_id=score.id) }}" onsubmit="return confirm('Er du sikker på at du vil slette dette resultatet?');">
+                        <button type="submit" class="action-btn btn-delete">Slett</button>
                     </form>
                 </td>
             </tr>
@@ -30,7 +30,7 @@
         </tbody>
     </table>
     {% else %}
-    <p>No scores recorded yet.</p>
+    <p>Ingen resultater registrert ennå.</p>
     {% endif %}
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
 {% endblock %}

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Select Player{% endblock %}
+{% block title %}Velg Spiller{% endblock %}
 
 {% block content %}
-    <h1>Velg spiller</h1>
+    <h1>Velg Spiller</h1>
     {% if players %}
     <div class="player-selection">
         {% for player in players %}
@@ -13,7 +13,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <p>No players registered yet.</p>
+    <p>Ingen spillere registrert ennå.</p>
     {% endif %}
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
 {% endblock %}

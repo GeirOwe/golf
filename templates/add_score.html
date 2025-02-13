@@ -1,24 +1,22 @@
 {% extends "base.html" %}
 
-{% block title %}Add Score{% endblock %}
+{% block title %}Legg Til Resultat{% endblock %}
 
 {% block content %}
-    <h1>Ny Score for {{ player.name }}</h1>
+    <h1>Legg Til Resultat for {{ player.name }}</h1>
     <form method="POST" action="{{ url_for('add_score', player_id=player.id) }}">
-        <div class="form-group">
-            <label for="score">Score</label>
-            <input type="number" id="score" name="score" required min="1">
-        </div>
-        <button type="submit" class="btn-update">Ny Score</button>
+        <label for="score">Resultat:</label>
+        <input type="number" id="score" name="score" required min="1"><br><br>
+        <button type="submit" class="action-btn">Legg Til Resultat</button>
     </form>
 
     {% if player.scores %}
-    <h2>Andre runder</h2>
+    <h2>Tidligere Resultater</h2>
     <table class="player-table">
         <thead>
             <tr>
                 <th>Dato</th>
-                <th>Score</th>
+                <th>Resultat</th>
             </tr>
         </thead>
         <tbody>
@@ -32,5 +30,6 @@
     </table>
     {% endif %}
 
-    <a href="{{ url_for('list_players') }}" class="button">Spillere</a>
+    <a href="{{ url_for('list_players') }}" class="button">Tilbake til Spillere</a>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
 {% endblock %}

@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Players List{% endblock %}
+{% block title %}Spillerliste{% endblock %}
 
 {% block content %}
-    <h1>Registered Players</h1>
+    <h1>Spillerliste</h1>
     {% if players %}
     <table class="player-table">
         <thead>
             <tr>
                 <th>Navn</th>
-                <th>Hcp</th>
-                <th>..</th>
+                <th>Handicap</th>
+                <th>Handlinger</th>
             </tr>
         </thead>
         <tbody>
@@ -20,13 +20,13 @@
                 <td>
                     <form method="POST" action="{{ url_for('update_handicap', player_id=player.id) }}" class="handicap-form">
                         <input type="number" name="handicap" value="{{ player.handicap }}" step="0.1">
-                        <button type="submit" class="btn-update">Endre</button>
+                        <button type="submit" class="action-btn btn-update">Oppdater</button>
                     </form>
                 </td>
                 <td>
-                    <a href="{{ url_for('add_score', player_id=player.id) }}" class="button">Ny Score</a>
-                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this player?');">
-                        <button type="submit" class="btn-delete">Slett</button>
+                    <a href="{{ url_for('add_score', player_id=player.id) }}" class="button">Legg Til Resultat</a>
+                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" class="delete-form" onsubmit="return confirm('Er du sikker på at du vil slette denne spilleren?');">
+                        <button type="submit" class="action-btn btn-delete">Slett</button>
                     </form>
                 </td>
             </tr>
@@ -36,5 +36,6 @@
     {% else %}
     <p>No players registered yet.</p>
     {% endif %}
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <a href="{{ url_for('register_player') }}" class="button">Registrer Ny Spiller</a>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
 {% endblock %}
