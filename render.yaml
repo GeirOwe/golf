@@ -4,6 +4,7 @@ services:
     env: python
     buildCommand: |
       pip install -r requirements.txt
+      # Database will be initialized only if tables don't exist
       mkdir -p instance
       chmod 777 instance
     startCommand: gunicorn app:app
