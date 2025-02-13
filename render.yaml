@@ -3,20 +3,16 @@ services:
     name: golf-app
     env: python
     buildCommand: |
-      mkdir -p /opt/render/project/src/instance
-      chmod 777 /opt/render/project/src/instance
       pip install -r requirements.txt
+      mkdir -p /opt/render/project/src/data
+      chmod 777 /opt/render/project/src/data
+      # Copy initial data files if they don't exist
+      cp -n data/*.json /opt/render/project/src/data/ 2>/dev/null || true
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: FLASK_APP
         value: app.py
-      - key: FLASK_ENV
-        value: production
-      - key: INSTANCE_DIR
-        value: /opt/render/project/src/instance
-    disk:
-      name: golf-data
-      mountPath: /opt/render/project/src/instance
-      sizeGB: 1
+      - key: DATA_DIR
+        value: /opt/render/project/src/data

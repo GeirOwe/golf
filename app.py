@@ -5,167 +5,92 @@
 
 import os
 from flask import Flask, render_template, request, redirect, url_for
-from sqlalchemy import inspect
-from models import db, Player, Score
+from models import Player, Score
+from data_store import ensure_data_files
 
-# Configuration
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INSTANCE_DIR = os.getenv('INSTANCE_DIR', os.path.join(BASE_DIR, "instance"))
+app = Flask(__name__)
 
-# Ensure instance directory exists with proper permissions
-os.makedirs(INSTANCE_DIR, exist_ok=True)
-os.chmod(INSTANCE_DIR, 0o777)
-
-# Configure database path
-DB_NAME = "golf.db"
-DB_PATH = os.path.join(INSTANCE_DIR, DB_NAME)
-
-
-def create_app():
-    """Create and configure the Flask application."""
-    app = Flask(__name__)
-    
-    # Configure SQLite database URI
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    
-    # Initialize database
-    db.init_app(app)
-    
-    return app
-
-app = create_app()
-
-
-def database_exists():
-    """Check if database tables exist."""
-    try:
-        with app.app_context():
-            inspector = inspect(db.engine)
-            return inspector.has_table("player") and inspector.has_table("score")
-    except Exception as e:
-        print(f"Database check failed: {e}")
-        return False
-
-# Create database tables if they don't exist
-with app.app_context():
-    if not database_exists():
-        try:
-            db.create_all()
-            print("Database tables created successfully")
-        except Exception as e:
-            print(f"Failed to create database: {e}")
-
+# Ensure data files exist on startup
+ensure_data_files()
 
 @app.route("/")
 def home():
-    """Render the home page with menu options."""
     return render_template("home.html")
-
 
 @app.route("/register", methods=["GET"])
 def register_player():
-    """Render the player registration form."""
     return render_template("register_player.html")
-
 
 @app.route("/players", methods=["GET"])
 def list_players():
-    """List all registered players."""
-    players = Player.query.all()
+    players = Player.get_all()
     return render_template("list_players.html", players=players)
-
 
 @app.route("/player/<int:player_id>/update_handicap", methods=["POST"])
 def update_handicap(player_id):
-    """Update a player's handicap."""
-    player = Player.query.get_or_404(player_id)
-    new_handicap = request.form.get("handicap")
-    if new_handicap is not None:
-        player.handicap = float(new_handicap)
-        db.session.commit()
+    player = Player.get_by_id(player_id)
+    if player:
+        new_handicap = request.form.get("handicap")
+        if new_handicap is not None:
+            player.handicap = float(new_handicap)
+            player.save()
     return redirect(url_for("list_players"))
-
 
 @app.route("/player/<int:player_id>/delete", methods=["POST"])
 def delete_player(player_id):
-    """Delete a player and all their scores."""
-    player = Player.query.get_or_404(player_id)
-    Score.query.filter_by(player_id=player.id).delete()
-    db.session.delete(player)
-    db.session.commit()
+    player = Player.get_by_id(player_id)
+    if player:
+        # Delete associated scores first
+        scores = Score.get_all()
+        for score in scores:
+            if score.player_id == player_id:
+                score.delete()
+        # Then delete player
+        player.delete()
     return redirect(url_for("list_players"))
-
 
 @app.route("/add_player", methods=["POST"])
 def add_player():
-    """Add a new player to the database."""
     player_name = request.form.get("player_name")
     handicap = request.form.get("handicap", 0)
     if player_name:
         player = Player(name=player_name, handicap=float(handicap))
-        db.session.add(player)
-        db.session.commit()
+        player.save()
     return redirect(url_for("home"))
-
 
 @app.route("/scores")
 def list_scores():
-    """List all scores, ordered by date ascending."""
-    scores = Score.query.order_by(Score.date.asc()).all()
+    scores = sorted(Score.get_all(), key=lambda s: s.date)
     return render_template("list_scores.html", scores=scores)
-
 
 @app.route("/score/<int:score_id>/delete", methods=["POST"])
 def delete_score(score_id):
-    """Delete a specific score."""
-    score = Score.query.get_or_404(score_id)
-    db.session.delete(score)
-    db.session.commit()
+    score = Score.get_by_id(score_id)
+    if score:
+        score.delete()
     return redirect(url_for("list_scores"))
-
 
 @app.route("/select_player_for_score")
 def select_player_for_score():
-    """Display player selection screen for score entry."""
-    players = Player.query.all()
+    players = Player.get_all()
     return render_template("select_player_for_score.html", players=players)
-
 
 @app.route("/player/<int:player_id>/add_score", methods=["GET", "POST"])
 def add_score(player_id):
-    """Add a score for the specified player."""
-    player = Player.query.get_or_404(player_id)
+    player = Player.get_by_id(player_id)
+    if not player:
+        return redirect(url_for("home"))
 
     if request.method == "POST":
         score_value = request.form.get("score")
         if score_value:
             score = Score(value=int(score_value), player_id=player.id)
-            db.session.add(score)
-            db.session.commit()
+            score.save()
             return redirect(url_for("add_score", player_id=player.id))
 
+    scores = [s for s in Score.get_all() if s.player_id == player.id]
+    player.scores = sorted(scores, key=lambda s: s.date, reverse=True)
     return render_template("add_score.html", player=player)
 
-
-# Create database tables
-def init_db():
-    """Initialize database tables."""
-    with app.app_context():
-        try:
-            if not database_exists():
-                db.create_all()
-                print(f"Database created at {DB_PATH}")
-            else:
-                print(f"Database already exists at {DB_PATH}")
-        except Exception as e:
-            print(f"Database initialization error: {e}")
-            raise
-
-# Initialize database on startup
-init_db()
-
 if __name__ == "__main__":
-    if not os.path.exists("instance/golf.db"):
-        init_db()
     app.run(host="0.0.0.0", port=10000)
