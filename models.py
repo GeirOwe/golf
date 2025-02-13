@@ -5,13 +5,8 @@ db = SQLAlchemy()
 
 
 class Player(db.Model):
-    """Player model representing a golf player in the system.
-    Attributes:
-        id (int): Primary key for the player
-        name (str): Player's name, must be unique
-        handicap (float): Player's golf handicap, defaults to 0
-        scores (relationship): One-to-many relationship with Score model
-    """
+    """Player model representing a golf player in the system."""
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=True, nullable=False)
     handicap = db.Column(db.Float, nullable=False, default=0)
@@ -23,13 +18,8 @@ class Player(db.Model):
 
 
 class Score(db.Model):
-    """Score model representing a golf score entry.
-    Attributes:
-        id (int): Primary key for the score
-        value (int): The actual score value
-        date (datetime): When the score was recorded, auto-set to UTC
-        player_id (int): Foreign key linking to the Player model
-    """
+    """Score model representing a golf score entry."""
+
     id = db.Column(db.Integer, primary_key=True)
     value = db.Column(db.Integer, nullable=False)
     date = db.Column(
@@ -38,15 +28,9 @@ class Score(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey("player.id"), nullable=False)
 
     def local_date(self):
-        """Convert UTC date to local timezone.
-        Returns:
-            datetime: Score date in local timezone
-        """
+        """Convert UTC date to local timezone."""
         return self.date.replace(tzinfo=timezone.utc).astimezone()
 
     def formatted_date(self):
-        """Return date in dd.mm.yy format.
-        Returns:
-            str: Formatted date string
-        """
-        return self.date.strftime('%d.%m.%y')
+        """Return date in dd.mm.yy format."""
+        return self.date.strftime("%d.%m.%y")
