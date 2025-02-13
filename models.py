@@ -6,7 +6,6 @@ db = SQLAlchemy()
 
 class Player(db.Model):
     """Player model representing a golf player in the system.
-
     Attributes:
         id (int): Primary key for the player
         name (str): Player's name, must be unique
@@ -40,7 +39,6 @@ class Score(db.Model):
 
     def local_date(self):
         """Convert UTC date to local timezone.
-        
         Returns:
             datetime: Score date in local timezone
         """
@@ -48,7 +46,6 @@ class Score(db.Model):
 
     def formatted_date(self):
         """Return date in dd.mm.yy format.
-        
         Returns:
             str: Formatted date string
         """
