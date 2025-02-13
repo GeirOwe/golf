@@ -45,3 +45,11 @@ class Score(db.Model):
             datetime: Score date in local timezone
         """
         return self.date.replace(tzinfo=timezone.utc).astimezone()
+
+    def formatted_date(self):
+        """Return date in dd.mm.yy format.
+        
+        Returns:
+            str: Formatted date string
+        """
+        return self.date.strftime('%d.%m.%y')

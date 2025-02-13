@@ -24,7 +24,7 @@
         <tbody>
             {% for score in player.scores %}
             <tr>
-                <td>{{ score.local_date().strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ score.formatted_date() }}</td>
                 <td>{{ score.value }}</td>
             </tr>
             {% endfor %}
