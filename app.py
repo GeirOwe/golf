@@ -11,27 +11,27 @@ from models import db, Player, Score
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INSTANCE_DIR = os.getenv('INSTANCE_DIR', os.path.join(BASE_DIR, "instance"))
+
+# Ensure instance directory exists with proper permissions
 os.makedirs(INSTANCE_DIR, exist_ok=True)
+os.chmod(INSTANCE_DIR, 0o777)
 
-# Ensure directory permissions
-if os.path.exists(INSTANCE_DIR):
-    os.chmod(INSTANCE_DIR, 0o777)
-
-DB_PATH = os.getenv('DATABASE_URL', os.path.join(INSTANCE_DIR, "golf.db"))
+# Configure database path
+DB_NAME = "golf.db"
+DB_PATH = os.path.join(INSTANCE_DIR, DB_NAME)
 
 
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
     
-    # Use SQLite for local development, but allow override for production
-    if DB_PATH.startswith('sqlite:///'):
-        app.config["SQLALCHEMY_DATABASE_URI"] = DB_PATH
-    else:
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
-    
+    # Configure SQLite database URI
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    
+    # Initialize database
     db.init_app(app)
+    
     return app
 
 app = create_app()
@@ -150,10 +150,20 @@ def add_score(player_id):
 
 # Create database tables
 def init_db():
+    """Initialize database tables."""
     with app.app_context():
-        db.create_all()
-        print("Database tables created successfully")
+        try:
+            if not database_exists():
+                db.create_all()
+                print(f"Database created at {DB_PATH}")
+            else:
+                print(f"Database already exists at {DB_PATH}")
+        except Exception as e:
+            print(f"Database initialization error: {e}")
+            raise
 
+# Initialize database on startup
+init_db()
 
 if __name__ == "__main__":
     if not os.path.exists("instance/golf.db"):

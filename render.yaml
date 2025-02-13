@@ -2,7 +2,10 @@ services:
   - type: web
     name: golf-app
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      mkdir -p /opt/render/project/src/instance
+      chmod 777 /opt/render/project/src/instance
+      pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
