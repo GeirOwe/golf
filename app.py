@@ -5,9 +5,25 @@
 
 import os
 from flask import Flask, render_template, request, redirect, url_for
-from models import Player
+from database import db, Player
+from dotenv import load_dotenv
+
+# Load environment variables from .env file in development
+if os.environ.get('FLASK_ENV') != 'production':
+    load_dotenv()
 
 app = Flask(__name__)
+
+# Database Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize database
+db.init_app(app)
+
+# Create tables
+with app.app_context():
+    db.create_all()
 
 @app.route("/")
 def home():
@@ -25,7 +41,9 @@ def add_player():
     player_name = request.form.get("player_name")
     handicap = request.form.get("handicap", 0)
     if player_name:
-        Player(name=player_name, handicap=float(handicap))
+        player = Player(name=player_name, handicap=float(handicap))
+        db.session.add(player)
+        db.session.commit()
     return redirect(url_for("home"))
 
 @app.route("/players", methods=["GET"])

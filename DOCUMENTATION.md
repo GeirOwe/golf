@@ -191,3 +191,116 @@ pytest
 3. Add score tracking
 4. Improve error handling
 5. Add input validation
+
+# PostgreSQL Setup and Commands
+
+## Local Installation (macOS)
+
+```bash
+# Install PostgreSQL using Homebrew
+brew install postgresql@16
+
+# Start PostgreSQL service
+brew services start postgresql@16
+
+# Add to PATH (add to ~/.zshrc)
+export PATH="/usr/local/opt/postgresql@16/bin:$PATH"
+```
+
+## Database Commands
+
+### Basic Database Management
+```bash
+# Create database
+createdb golf_dev
+
+# Delete database
+dropdb golf_dev
+
+# List all databases
+psql -l
+
+# Connect to database
+psql golf_dev
+```
+
+### Useful PSQL Commands
+```sql
+-- List all tables
+\dt
+
+-- Describe table
+\d players
+
+-- List all users
+\du
+
+-- Exit psql
+\q
+
+-- Clear screen
+\! clear
+```
+
+### Common SQL Queries
+```sql
+-- View all players
+SELECT * FROM players;
+
+-- Delete all players
+DELETE FROM players;
+
+-- Reset auto-increment
+ALTER SEQUENCE players_id_seq RESTART WITH 1;
+
+-- Count players
+SELECT COUNT(*) FROM players;
+```
+
+## Database Connection
+
+### Local Development
+```bash
+# Environment variables for local development
+DATABASE_URL=postgresql://localhost/golf_dev
+FLASK_ENV=development
+```
+
+### Render.com Connection
+- Database Name: golf_db_jn45
+- Connection string format: 
+  `postgresql://user:password@host:port/database`
+- Connection managed through Render.com environment variables
+
+## Troubleshooting
+
+### Service Status
+```bash
+# Check PostgreSQL service status
+brew services list
+
+# Restart PostgreSQL service
+brew services restart postgresql@16
+
+# Stop PostgreSQL service
+brew services stop postgresql@16
+```
+
+### Common Issues
+1. **Connection refused**
+   ```bash
+   # Start PostgreSQL service
+   brew services start postgresql@16
+   ```
+
+2. **Database doesn't exist**
+   ```bash
+   # Create database
+   createdb golf_dev
+   ```
+
+3. **Permission denied**
+   ```bash
+   # Create superuser
+   createuser -s $USER
+   ```
