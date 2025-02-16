@@ -67,6 +67,21 @@ def delete_player(player_id):
         player.delete()
     return redirect(url_for("list_players"))
 
+@app.route("/player/<int:player_id>/update", methods=["GET", "POST"])
+def update_player(player_id):
+    """Update a player's information."""
+    player = Player.get_by_id(player_id)
+    if not player:
+        return redirect(url_for("list_players"))
+    
+    if request.method == "POST":
+        player.name = request.form.get("player_name", player.name)
+        player.handicap = float(request.form.get("handicap", player.handicap))
+        db.session.commit()
+        return redirect(url_for("list_players"))
+        
+    return render_template("update_player.html", player=player)
+
 @app.errorhandler(404)
 def page_not_found(e):
     """Handle 404 errors."""

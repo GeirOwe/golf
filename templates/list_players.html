@@ -3,7 +3,7 @@
 {% block title %}Spillerliste{% endblock %}
 
 {% block content %}
-    <h1>Spillerliste</h1>
+    <h1>Spillere</h1>
     {% if players %}
     <table class="player-table">
         <thead>
@@ -19,7 +19,10 @@
                 <td>{{ player.name }}</td>
                 <td>{{ player.handicap }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" 
+                    <a href="{{ url_for('update_player', player_id=player.id) }}" 
+                       class="btn-update">Endre</a>
+                    <form method="POST" 
+                          action="{{ url_for('delete_player', player_id=player.id) }}" 
                           style="display: inline;"
                           onsubmit="return confirm('Er du sikker på at du vil slette denne spilleren?');">
                         <button type="submit" class="btn-delete">Slett</button>
@@ -32,6 +35,6 @@
     {% else %}
     <p>Ingen spillere registrert ennå.</p>
     {% endif %}
-    <a href="{{ url_for('register_player') }}" class="button">Registrer Ny Spiller</a>
-    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
+    <a href="{{ url_for('register_player') }}" class="button">Ny Spiller</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
 {% endblock %}

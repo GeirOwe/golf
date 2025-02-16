@@ -1,18 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Registrer Spiller{% endblock %}
+{% block title %}Oppdater Spiller{% endblock %}
 
 {% block content %}
-    <h1>Ny Spiller</h1>
-    <form method="POST" action="{{ url_for('add_player') }}">
+    <h1>Oppdater Spiller</h1>
+    <form method="POST">
         <div class="form-group">
             <label for="player_name">Spillernavn:</label>
             <input type="text" 
                    id="player_name" 
                    name="player_name" 
-                   required 
-                   autocomplete="off"
-                   placeholder="Skriv inn spillernavn">
+                   value="{{ player.name }}"
+                   required>
         </div>
         <div class="form-group">
             <label for="handicap">Handicap:</label>
@@ -20,10 +19,9 @@
                    id="handicap" 
                    name="handicap" 
                    step="0.1" 
-                   value="0" 
-                   placeholder="0.0">
+                   value="{{ player.handicap }}">
         </div>
-        <button type="submit" class="button">Lagre</button>
+        <button type="submit" class="button">Endre</button>
     </form>
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <a href="{{ url_for('list_players') }}" class="button">Tilbake</a>
 {% endblock %}
