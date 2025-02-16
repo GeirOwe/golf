@@ -2,16 +2,6 @@
 
 ## Features
 - Player registration and management
-- Score tracking for each player
-- Handicap management
-- Score history view
-
-## Documentation
-Detailed documentation can be found in the `docs` folder:
-- [Installation Guide](docs/installation_guide.md) - Complete setup and deployment instructions
-- [Technical Documentation](docs/technical_documentation.md)
-- [API Documentation](docs/api_documentation.md)
-- [Database Documentation](docs/database_documentation.md)
 
 ## Quick Start
 
@@ -30,12 +20,6 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Initialize Database
-```bash
-# Create the database
-python init_db.py
-```
-
 ### 4. Run Flask Application
 ```bash
 # Set development environment
@@ -45,8 +29,6 @@ export FLASK_APP=app.py
 # Run the application
 flask run
 ```
-
-See [Installation Guide](docs/installation_guide.md) for complete setup and deployment instructions.
 
 ## Development
 
@@ -65,6 +47,4 @@ The application is deployed on Render. See [Installation Guide](docs/installatio
 - `app.py`: Main Flask application
 - `models.py`: Database models
 - `templates/`: HTML templates
-- `instance/`: Database files
-- `docs/`: Project documentation
 - `.flake8`: Flake8 configuration
