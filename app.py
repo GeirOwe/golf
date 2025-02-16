@@ -7,20 +7,25 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 from models import db, Player, Score
 
-# Configuration
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
-DB_PATH = os.path.join(INSTANCE_DIR, 'golf.db')
-
-# Ensure instance directory exists
-os.makedirs(INSTANCE_DIR, exist_ok=True)
-
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+
+# Use environment variable for database URL or default to local SQLite
+if os.environ.get('DATABASE_URL'):
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL')
+else:
+    # Local development configuration
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+    DB_PATH = os.path.join(INSTANCE_DIR, 'golf.db')
+    os.makedirs(INSTANCE_DIR, exist_ok=True)
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize database
 db.init_app(app)
+with app.app_context():
+    db.create_all()
 
 @app.route("/")
 def home():
