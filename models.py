@@ -16,11 +16,13 @@ class Player:
         self.handicap = handicap
         Player.players.append(self)
 
-    def get_all(self):
+    @classmethod
+    def get_all(cls):
         """Return all players."""
-        return Player.players
+        return cls.players
 
-    def get_by_id(self, player_id):
+    @classmethod
+    def get_by_id(cls, player_id):
         """Find player by ID.
         
         Args:
@@ -29,7 +31,7 @@ class Player:
         Returns:
             Player object if found, None otherwise
         """
-        return next((p for p in Player.players if p.id == player_id), None)
+        return next((p for p in cls.players if p.id == player_id), None)
 
     def delete(self):
         """Remove player from storage."""

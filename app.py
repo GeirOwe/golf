@@ -31,19 +31,15 @@ def add_player():
 @app.route("/players", methods=["GET"])
 def list_players():
     """Display list of all players."""
-    player = Player("temp")  # Create temporary player to access methods
-    players = player.get_all()
-    Player.players.remove(player)  # Remove temporary player
+    players = Player.get_all()  # Using class method
     return render_template("list_players.html", players=players)
 
 @app.route("/player/<int:player_id>/delete", methods=["POST"])
 def delete_player(player_id):
     """Delete a player."""
-    player = Player("temp")  # Create temporary player to access methods
-    found_player = player.get_by_id(player_id)
-    Player.players.remove(player)  # Remove temporary player
-    if found_player:
-        found_player.delete()
+    player = Player.get_by_id(player_id)  # Using class method
+    if player:
+        player.delete()
     return redirect(url_for("list_players"))
 
 if __name__ == "__main__":

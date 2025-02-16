@@ -40,9 +40,6 @@ This project follows PEP 8 style guidelines. We use flake8 for code linting.
 flake8 app.py models.py
 ```
 
-## Deployment
-The application is deployed on Render. See [Installation Guide](docs/installation_guide.md) for deployment instructions.
-
 ## Project Structure
 - `app.py`: Main Flask application
 - `models.py`: Database models
