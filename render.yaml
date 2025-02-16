@@ -2,8 +2,11 @@ services:
   - type: web
     name: golf-app
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    buildCommand: |
+      pip install -r requirements.txt
+      mkdir -p instance
+      chmod 777 instance
+    startCommand: gunicorn "app:app"
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
@@ -11,5 +14,7 @@ services:
         value: app.py
       - key: FLASK_ENV
         value: production
-      - key: DATABASE_URL
-        value: sqlite:///instance/golf.db
+      - key: RENDER
+        value: "true"
+      - key: INSTANCE_DIR
+        value: /opt/render/project/src/instance

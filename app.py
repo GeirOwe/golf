@@ -9,23 +9,32 @@ from models import db, Player, Score
 
 app = Flask(__name__)
 
-# Use environment variable for database URL or default to local SQLite
-if os.environ.get('DATABASE_URL'):
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL')
+# Database Configuration
+INSTANCE_DIR = os.getenv('INSTANCE_DIR', 'instance')
+os.makedirs(INSTANCE_DIR, exist_ok=True)
+
+if os.environ.get('RENDER'):
+    # Render deployment configuration
+    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(INSTANCE_DIR, 'golf.db')}"
 else:
     # Local development configuration
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
-    DB_PATH = os.path.join(INSTANCE_DIR, 'golf.db')
-    os.makedirs(INSTANCE_DIR, exist_ok=True)
+    DB_PATH = os.path.join(BASE_DIR, INSTANCE_DIR, 'golf.db')
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Initialize database
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+
+# Ensure database and tables exist
+def init_db():
+    with app.app_context():
+        db.create_all()
+        print("Database initialized successfully")
+
+# Initialize database on startup
+init_db()
 
 @app.route("/")
 def home():
@@ -106,11 +115,6 @@ def add_score(player_id):
             return redirect(url_for("add_score", player_id=player.id))
 
     return render_template("add_score.html", player=player)
-
-# Initialize database
-def init_db():
-    with app.app_context():
-        db.create_all()
 
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
