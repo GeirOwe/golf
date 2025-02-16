@@ -1,4 +1,3 @@
-
 class Player:
     """Player model for storing golf player data in memory."""
     players = []  # Class variable to store all players
@@ -17,13 +16,11 @@ class Player:
         self.handicap = handicap
         Player.players.append(self)
 
-    @classmethod
-    def get_all(cls):
+    def get_all(self):
         """Return all players."""
-        return cls.players
+        return Player.players
 
-    @classmethod
-    def get_by_id(cls, player_id):
+    def get_by_id(self, player_id):
         """Find player by ID.
         
         Args:
@@ -32,7 +29,7 @@ class Player:
         Returns:
             Player object if found, None otherwise
         """
-        return next((p for p in cls.players if p.id == player_id), None)
+        return next((p for p in Player.players if p.id == player_id), None)
 
     def delete(self):
         """Remove player from storage."""
