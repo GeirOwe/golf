@@ -7,7 +7,6 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 from database import db, Player
 from dotenv import load_dotenv
-from werkzeug.exceptions import NotFound
 
 # Initialize Flask application
 def create_app():

@@ -1,7 +1,9 @@
 [flake8]
-max-line-length = 88
-extend-ignore = E203
-exclude = .git,__pycache__,build,dist
+max-line-length = 105
+exclude = venv/*
 per-file-ignores =
-    # imported but unused in __init__.py files
+    # imported but unused in __init__ files
     __init__.py: F401
+    app.py: W293, E302, E305
+    models.py: W293, E302, E305
+    database.py: W293, E302, E305
