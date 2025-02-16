@@ -10,31 +10,19 @@
             <tr>
                 <th>Navn</th>
                 <th>Handicap</th>
-                <th>Handlinger</th>
             </tr>
         </thead>
         <tbody>
             {% for player in players %}
             <tr>
                 <td>{{ player.name }}</td>
-                <td>
-                    <form method="POST" action="{{ url_for('update_handicap', player_id=player.id) }}" class="handicap-form">
-                        <input type="number" name="handicap" value="{{ player.handicap }}" step="0.1">
-                        <button type="submit" class="action-btn btn-update">Oppdater</button>
-                    </form>
-                </td>
-                <td>
-                    <a href="{{ url_for('add_score', player_id=player.id) }}" class="button">Legg Til Resultat</a>
-                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" class="delete-form" onsubmit="return confirm('Er du sikker på at du vil slette denne spilleren?');">
-                        <button type="submit" class="action-btn btn-delete">Slett</button>
-                    </form>
-                </td>
+                <td>{{ player.handicap }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p>No players registered yet.</p>
+    <p>Ingen spillere registrert ennå.</p>
     {% endif %}
     <a href="{{ url_for('register_player') }}" class="button">Registrer Ny Spiller</a>
     <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>

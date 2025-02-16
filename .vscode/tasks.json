@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Flask",
+            "type": "shell",
+            "command": "flask run",
+            "options": {
+                "env": {
+                    "FLASK_APP": "app.py",
+                    "FLASK_ENV": "development"
+                }
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

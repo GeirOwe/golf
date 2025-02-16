@@ -1,25 +1,40 @@
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
-db = SQLAlchemy()
+class Player:
+    """Player model for storing golf player data in memory."""
+    players = []  # Class variable to store all players
+    next_id = 1   # Class variable for ID generation
 
-class Player(db.Model):
-    """Player model representing a golf player."""
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=True, nullable=False)
-    handicap = db.Column(db.Float, nullable=False, default=0)
-    scores = db.relationship('Score', backref='player', lazy=True)
+    def __init__(self, name: str, handicap: float = 0):
+        """Initialize a new player.
+        
+        Args:
+            name: Player's name
+            handicap: Player's handicap (default: 0)
+        """
+        self.id = Player.next_id
+        Player.next_id += 1
+        self.name = name
+        self.handicap = handicap
+        Player.players.append(self)
 
-    def __repr__(self):
-        return f'<Player {self.name}>'
+    @classmethod
+    def get_all(cls):
+        """Return all players."""
+        return cls.players
 
-class Score(db.Model):
-    """Score model representing a golf score entry."""
-    id = db.Column(db.Integer, primary_key=True)
-    value = db.Column(db.Integer, nullable=False)
-    date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    player_id = db.Column(db.Integer, db.ForeignKey('player.id'), nullable=False)
+    @classmethod
+    def get_by_id(cls, player_id):
+        """Find player by ID.
+        
+        Args:
+            player_id: The ID of the player to find
+            
+        Returns:
+            Player object if found, None otherwise
+        """
+        return next((p for p in cls.players if p.id == player_id), None)
 
-    def formatted_date(self):
-        """Return date in dd.mm.yy format."""
-        return self.date.strftime('%d.%m.%y')
+    def delete(self):
+        """Remove player from storage."""
+        if self in Player.players:
+            Player.players.remove(self)
