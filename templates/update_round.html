@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Oppdater Runde{% endblock %}
+
+{% block content %}
+    <h1>Oppdater Golfrunde</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="course_name">Bane:</label>
+            <input type="text" 
+                   id="course_name" 
+                   name="course_name" 
+                   value="{{ round.course_name }}"
+                   required>
+        </div>
+        <div class="form-group">
+            <label for="play_date">Dato:</label>
+            <input type="date" 
+                   id="play_date" 
+                   name="play_date" 
+                   value="{{ round.play_date.strftime('%Y-%m-%d') }}"
+                   required>
+        </div>
+        <div class="form-group">
+            <label for="tee_time">Teetime:</label>
+            <input type="time" 
+                   id="tee_time" 
+                   name="tee_time" 
+                   value="{{ round.tee_time }}"
+                   required>
+        </div>
+        <button type="submit" class="button">Oppdater</button>
+    </form>
+    <a href="{{ url_for('list_rounds') }}" class="button">Tilbake</a>
+{% endblock %}

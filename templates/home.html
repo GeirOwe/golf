@@ -3,11 +3,33 @@
 {% block title %}Hjem{% endblock %}
 
 {% block content %}
-    <h1>Golf Applikasjon</h1>
+    <h1>Gutta på golf tur - Alicante</h1>
+    
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="success-message">{{ message }}</div>
+    {% endif %}
+    
     <div class="menu">
+        <h2>Spillere</h2>
         <a href="{{ url_for('register_player') }}" class="menu-item">Ny Spiller</a>
-        <a href="{{ url_for('list_players') }}" class="menu-item">List spillere</a>
+        <a href="{{ url_for('list_players') }}" class="menu-item">Se Spillere</a>
+        
+        <h2>Runder</h2>
         <a href="{{ url_for('add_round') }}" class="menu-item">Ny Runde</a>
-        <a href="{{ url_for('list_rounds') }}" class="menu-item">List runder</a>
+        <a href="{{ url_for('list_rounds') }}" class="menu-item">Se Runder</a>
+        
+        <h2>Score</h2>
+        <a href="{{ url_for('list_scores') }}" class="menu-item">Score oversikt</a>
+        
+        <h2>Administrasjon</h2>
+        <form method="POST" 
+              action="{{ url_for('reset_database') }}"
+              onsubmit="return confirm('Er du sikker på at du vil nullstille databasen? Dette vil slette alle data!');"
+              style="display: inline;">
+            <button type="submit" class="btn-danger">Nullstill Database</button>
+        </form>
     </div>
 {% endblock %}

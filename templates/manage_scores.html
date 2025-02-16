@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Registrer Score{% endblock %}
+
+{% block content %}
+    <h1>Registrer Score</h1>
+    <h2>{{ round.play_date.strftime('%A %d.%m').capitalize() }} - {{ round.course_name }}</h2>
+    
+    <form method="POST">
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th>Spiller</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player in players %}
+                <tr>
+                    <td>{{ player.name }}</td>
+                    <td>
+                        <input type="number" 
+                               name="score_{{ player.id }}"
+                               value="{{ round.get_player_score(player.id) }}"
+                               min="0"
+                               max="200"
+                               class="score-input">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="button">Lagre Score</button>
+    </form>
+    <a href="{{ url_for('list_rounds') }}" class="button">Tilbake</a>
+{% endblock %}

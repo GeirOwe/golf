@@ -1,50 +1,53 @@
-# this app is deployed to Render.
-# url: https://golf-app-w497.onrender.com
-# dashboard on Render: https://dashboard.render.com/web/srv-cul4m20gph6c738frqj0
-# OBS: Your free instance will spin down with inactivity, which can delay requests by 50 seconds or more.
+"""
+Golf Application
+---------------
+A Flask web application for managing golf players and rounds.
+Deployed on Render.com: https://golf-app-w497.onrender.com
+"""
 
 import os
-from flask import Flask, render_template, request, redirect, url_for
-from database import db, Player, Round
-from models import HandicapError
-from dotenv import load_dotenv
 from datetime import datetime
 import locale
+from flask import Flask, render_template, request, redirect, url_for
+from database import db, Player, Round, RoundScore  # Add RoundScore to imports
+from models import HandicapError
+from dotenv import load_dotenv
+
+# Set Norwegian locale for date formatting
 try:
     locale.setlocale(locale.LC_TIME, 'nb_NO.UTF-8')
 except locale.Error:
-    # Fallback for systems without Norwegian locale
     locale.setlocale(locale.LC_TIME, '')
 
-# Initialize Flask application
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
     
-    # Load environment variables
+    # Environment Configuration
     if os.environ.get('FLASK_ENV') != 'production':
         load_dotenv()
     
-    # Configure database
+    # Database Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # Initialize database
     db.init_app(app)
     
     return app
 
+# Initialize application
 app = create_app()
 
 # Ensure database tables exist
 with app.app_context():
     db.create_all()
 
+# Basic Routes
 @app.route("/")
 def home():
     """Render the home page."""
     return render_template("home.html")
 
+# Player Management Routes
 @app.route("/register", methods=["GET"])
 def register_player():
     """Display the player registration form."""
@@ -52,13 +55,15 @@ def register_player():
 
 @app.route("/add_player", methods=["POST"])
 def add_player():
-    """Handle new player registration."""
+    """Handle new player registration with handicap validation."""
     player_name = request.form.get("player_name")
     handicap = float(request.form.get("handicap", 0))
     
     try:
         if player_name:
-            Player(name=player_name, handicap=handicap)
+            player = Player(name=player_name, handicap=handicap)
+            db.session.add(player)
+            db.session.commit()
             return redirect(url_for("home"))
     except HandicapError as e:
         return render_template("register_player.html", error=str(e))
@@ -67,21 +72,21 @@ def add_player():
 
 @app.route("/players", methods=["GET"])
 def list_players():
-    """Display list of all players."""
-    players = Player.get_all()  # Using class method
+    """Display list of all players sorted by name."""
+    players = Player.get_all()
     return render_template("list_players.html", players=players)
 
 @app.route("/player/<int:player_id>/delete", methods=["POST"])
 def delete_player(player_id):
-    """Delete a player."""
-    player = Player.get_by_id(player_id)  # Using class method
+    """Delete a player by ID."""
+    player = Player.get_by_id(player_id)
     if player:
         player.delete()
     return redirect(url_for("list_players"))
 
 @app.route("/player/<int:player_id>/update", methods=["GET", "POST"])
 def update_player(player_id):
-    """Update a player's information."""
+    """Update a player's information with handicap validation."""
     player = Player.get_by_id(player_id)
     if not player:
         return redirect(url_for("list_players"))
@@ -100,9 +105,10 @@ def update_player(player_id):
         
     return render_template("update_player.html", player=player)
 
+# Round Management Routes
 @app.route("/rounds")
 def list_rounds():
-    """Display list of all rounds."""
+    """Display list of all rounds sorted by date."""
     rounds = Round.get_all()
     return render_template("list_rounds.html", rounds=rounds)
 
@@ -113,9 +119,15 @@ def add_round():
         course_name = request.form.get("course_name")
         play_date = datetime.strptime(request.form.get("play_date"), "%Y-%m-%d")
         tee_time = request.form.get("tee_time")
+        pick_up = request.form.get("pick_up")
         
         if course_name and play_date and tee_time:
-            round = Round(course_name=course_name, play_date=play_date, tee_time=tee_time)
+            round = Round(
+                course_name=course_name,
+                play_date=play_date,
+                tee_time=tee_time,
+                pick_up=pick_up
+            )
             db.session.add(round)
             db.session.commit()
             return redirect(url_for("list_rounds"))
@@ -124,12 +136,85 @@ def add_round():
 
 @app.route("/round/<int:round_id>/delete", methods=["POST"])
 def delete_round(round_id):
-    """Delete a round."""
+    """Delete a round by ID."""
     round = Round.get_by_id(round_id)
     if round:
         round.delete()
     return redirect(url_for("list_rounds"))
 
+@app.route("/round/<int:round_id>/update", methods=["GET", "POST"])
+def update_round(round_id):
+    """Update a round's information."""
+    round = Round.get_by_id(round_id)
+    if not round:
+        return redirect(url_for("list_rounds"))
+    
+    if request.method == "POST":
+        round.course_name = request.form.get("course_name", round.course_name)
+        play_date = request.form.get("play_date")
+        if play_date:
+            round.play_date = datetime.strptime(play_date, "%Y-%m-%d")
+        round.tee_time = request.form.get("tee_time", round.tee_time)
+        db.session.commit()
+        return redirect(url_for("list_rounds"))
+        
+    return render_template("update_round.html", round=round)
+
+@app.route("/round/<int:round_id>/scores", methods=["GET", "POST"])
+def manage_scores(round_id):
+    """Manage scores for a round."""
+    round = Round.get_by_id(round_id)
+    if not round:
+        return redirect(url_for("list_rounds"))
+    
+    players = Player.get_all()
+    
+    if request.method == "POST":
+        # Update scores
+        for player in players:
+            score = request.form.get(f"score_{player.id}")
+            if score:
+                # Update or create score
+                round_score = RoundScore.query.filter_by(
+                    round_id=round.id,
+                    player_id=player.id
+                ).first()
+                
+                if round_score:
+                    round_score.score = int(score)
+                else:
+                    round_score = RoundScore(
+                        round_id=round.id,
+                        player_id=player.id,
+                        score=int(score)
+                    )
+                    db.session.add(round_score)
+        
+        db.session.commit()
+        return redirect(url_for("list_rounds"))
+    
+    return render_template("manage_scores.html", round=round, players=players)
+
+@app.route("/scores")
+def list_scores():
+    """Display all scores sorted by round date."""
+    # Get all rounds with scores, sorted by date
+    rounds = Round.query.join(RoundScore).order_by(Round.play_date.asc()).distinct().all()
+    players = Player.get_all()
+    return render_template("list_scores.html", rounds=rounds, players=players)
+
+@app.route("/admin/db/reset", methods=["POST"])
+def reset_database():
+    """Reset and reinitialize the database."""
+    try:
+        with app.app_context():
+            db.drop_all()
+            db.create_all()
+        return redirect(url_for("home", message="Database reset successfully"))
+    except Exception as e:
+        return redirect(url_for("home", error=f"Database reset failed: {str(e)}"))
+
+# Error Handlers
 @app.errorhandler(404)
 def page_not_found(e):
     """Handle 404 errors."""
@@ -140,5 +225,6 @@ def server_error(e):
     """Handle 500 errors."""
     return render_template('500.html'), 500
 
+# Run application
 if __name__ == "__main__":
     app.run(debug=True)

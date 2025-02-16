@@ -11,6 +11,7 @@
                 <th class="date-column">Dato</th>
                 <th class="course-column">Bane</th>
                 <th class="time-column">Teetime</th>
+                <th class="pickup-column">Henting</th>
                 <th class="actions-column">Handlinger</th>
             </tr>
         </thead>
@@ -20,7 +21,12 @@
                 <td class="date-column">{{ round.play_date.strftime('%A %d.%m').capitalize() }}</td>
                 <td class="course-column">{{ round.course_name }}</td>
                 <td class="time-column">{{ round.tee_time }}</td>
+                <td class="pickup-column">{{ round.pick_up or '' }}</td>
                 <td class="actions-column">
+                    <a href="{{ url_for('manage_scores', round_id=round.id) }}" 
+                       class="btn-score">Score</a>
+                    <a href="{{ url_for('update_round', round_id=round.id) }}" 
+                       class="btn-update">Endre</a>
                     <form method="POST" 
                           action="{{ url_for('delete_round', round_id=round.id) }}" 
                           style="display: inline;"

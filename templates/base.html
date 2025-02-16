@@ -92,19 +92,77 @@
         }
 
         .date-column {
-            width: 25%;
+            width: 12%;          /* Reduced from 20% */
+            white-space: nowrap;
         }
 
         .course-column {
-            width: 35%;
+            width: 15%;          /* Reduced from 25% */
         }
 
         .time-column {
-            width: 20%;
+            width: 15%;
         }
 
         .actions-column {
             width: 20%;
+        }
+
+        .pickup-column {
+            width: 15%;
+        }
+
+        .score-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .score-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+            table-layout: fixed;
+        }
+
+        .score-table th,
+        .score-table td {
+            padding: 6px 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        /* Updated column styles for score table */
+        .score-table .date-column {
+            width: 90px;        /* Fixed width for 9 characters */
+            min-width: 90px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .score-table .course-column {
+            width: 120px;       /* Fixed width for 12 characters */
+            min-width: 120px;
+            white-space: normal;  /* Allow text wrapping */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .score-table .score-column {
+            width: 50px;
+            text-align: center !important;
+        }
+
+        .score-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .score-input {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
 
         /* Buttons */
@@ -156,6 +214,51 @@
         
         .btn-update:hover {
             background-color: #218838;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+    
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-score {
+            background-color: #17a2b8;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .btn-score:hover {
+            background-color: #138496;
+        }
+    
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+        }
+    
+        .menu h2 {
+            margin-top: 20px;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 5px;
         }
 
         /* Forms */

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Scoreoversikt{% endblock %}
+
+{% block content %}
+    <h1>Score oversikt</h1>
+    {% if rounds %}
+    <div class="score-container">
+        <table class="score-table">
+            <thead>
+                <tr>
+                    <th class="date-column">Dato</th>
+                    <th class="course-column">Bane</th>
+                    {% for player in players %}
+                        <th class="score-column">{{ player.name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for round in rounds %}
+                <tr>
+                    <td class="date-column">{{ round.play_date.strftime('%A %d.%m').capitalize() }}</td>
+                    <td class="course-column">{{ round.course_name }}</td>
+                    {% for player in players %}
+                        <td class="score-column">
+                            {{ round.get_player_score(player.id) or '-' }}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>Ingen scorer registrert ennå.</p>
+    {% endif %}
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}
