@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Siden finnes ikke{% endblock %}
+
+{% block content %}
+    <h1>404 - Siden finnes ikke</h1>
+    <p>Beklager, siden du leter etter finnes ikke.</p>
+    <a href="{{ url_for('home') }}" class="button">Tilbake til Hjem</a>
+{% endblock %}

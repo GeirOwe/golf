@@ -3,13 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{% endblock %} - Golf App</title>
+    <title>{% block title %}{% endblock %} - Golf Applikasjon</title>
     <style>
+        /* Move styles to separate CSS file if they grow larger */
+        :root {
+            --primary-color: #495057;
+            --danger-color: #dc3545;
+            --bg-color: #f0f0f0;
+        }
+
         /* General styles */
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
-            background-color: #f0f0f0;
+            background-color: var(--bg-color);
             font-size: 16px;
         }
 
@@ -40,7 +47,7 @@
         /* Menu and navigation */
         .menu-item {
             display: block;
-            background-color: #495057;
+            background-color: var(--primary-color);
             color: white;
             padding: 12px 20px;
             text-decoration: none;
@@ -95,7 +102,7 @@
         }
 
         .btn-delete {
-            background-color: #dc3545;
+            background-color: var(--danger-color);
             color: white;
             padding: 5px 10px;
             border: none;

@@ -7,21 +7,29 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 from database import db, Player
 from dotenv import load_dotenv
+from werkzeug.exceptions import NotFound
 
-# Load environment variables from .env file in development
-if os.environ.get('FLASK_ENV') != 'production':
-    load_dotenv()
+# Initialize Flask application
+def create_app():
+    """Create and configure the Flask application."""
+    app = Flask(__name__)
+    
+    # Load environment variables
+    if os.environ.get('FLASK_ENV') != 'production':
+        load_dotenv()
+    
+    # Configure database
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Initialize database
+    db.init_app(app)
+    
+    return app
 
-app = Flask(__name__)
+app = create_app()
 
-# Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize database
-db.init_app(app)
-
-# Create tables
+# Ensure database tables exist
 with app.app_context():
     db.create_all()
 
@@ -59,6 +67,16 @@ def delete_player(player_id):
     if player:
         player.delete()
     return redirect(url_for("list_players"))
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors."""
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    """Handle 500 errors."""
+    return render_template('500.html'), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
