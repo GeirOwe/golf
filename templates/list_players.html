@@ -10,6 +10,7 @@
             <tr>
                 <th>Navn</th>
                 <th>Handicap</th>
+                <th>Handlinger</th>
             </tr>
         </thead>
         <tbody>
@@ -17,6 +18,13 @@
             <tr>
                 <td>{{ player.name }}</td>
                 <td>{{ player.handicap }}</td>
+                <td>
+                    <form method="POST" action="{{ url_for('delete_player', player_id=player.id) }}" 
+                          style="display: inline;"
+                          onsubmit="return confirm('Er du sikker på at du vil slette denne spilleren?');">
+                        <button type="submit" class="btn-delete">Slett</button>
+                    </form>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
