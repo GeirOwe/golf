@@ -5,8 +5,16 @@
 
 import os
 from flask import Flask, render_template, request, redirect, url_for
-from database import db, Player
+from database import db, Player, Round
+from models import HandicapError
 from dotenv import load_dotenv
+from datetime import datetime
+import locale
+try:
+    locale.setlocale(locale.LC_TIME, 'nb_NO.UTF-8')
+except locale.Error:
+    # Fallback for systems without Norwegian locale
+    locale.setlocale(locale.LC_TIME, '')
 
 # Initialize Flask application
 def create_app():
@@ -46,11 +54,15 @@ def register_player():
 def add_player():
     """Handle new player registration."""
     player_name = request.form.get("player_name")
-    handicap = request.form.get("handicap", 0)
-    if player_name:
-        player = Player(name=player_name, handicap=float(handicap))
-        db.session.add(player)
-        db.session.commit()
+    handicap = float(request.form.get("handicap", 0))
+    
+    try:
+        if player_name:
+            Player(name=player_name, handicap=handicap)
+            return redirect(url_for("home"))
+    except HandicapError as e:
+        return render_template("register_player.html", error=str(e))
+    
     return redirect(url_for("home"))
 
 @app.route("/players", methods=["GET"])
@@ -75,12 +87,48 @@ def update_player(player_id):
         return redirect(url_for("list_players"))
     
     if request.method == "POST":
+        new_handicap = float(request.form.get("handicap", player.handicap))
+        if new_handicap > Player.MAX_HANDICAP:
+            return render_template("update_player.html", 
+                                player=player, 
+                                error=f"Handicap cannot be greater than {Player.MAX_HANDICAP}")
+        
         player.name = request.form.get("player_name", player.name)
-        player.handicap = float(request.form.get("handicap", player.handicap))
+        player.handicap = new_handicap
         db.session.commit()
         return redirect(url_for("list_players"))
         
     return render_template("update_player.html", player=player)
+
+@app.route("/rounds")
+def list_rounds():
+    """Display list of all rounds."""
+    rounds = Round.get_all()
+    return render_template("list_rounds.html", rounds=rounds)
+
+@app.route("/round/new", methods=["GET", "POST"])
+def add_round():
+    """Handle new round registration."""
+    if request.method == "POST":
+        course_name = request.form.get("course_name")
+        play_date = datetime.strptime(request.form.get("play_date"), "%Y-%m-%d")
+        tee_time = request.form.get("tee_time")
+        
+        if course_name and play_date and tee_time:
+            round = Round(course_name=course_name, play_date=play_date, tee_time=tee_time)
+            db.session.add(round)
+            db.session.commit()
+            return redirect(url_for("list_rounds"))
+    
+    return render_template("add_round.html")
+
+@app.route("/round/<int:round_id>/delete", methods=["POST"])
+def delete_round(round_id):
+    """Delete a round."""
+    round = Round.get_by_id(round_id)
+    if round:
+        round.delete()
+    return redirect(url_for("list_rounds"))
 
 @app.errorhandler(404)
 def page_not_found(e):

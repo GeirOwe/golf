@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Registrer Golfrunde{% endblock %}
+
+{% block content %}
+    <h1>Ny Golfrunde</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="course_name">Bane</label>
+            <input type="text" id="course_name" name="course_name" required>
+        </div>
+        <div class="form-group">
+            <label for="play_date">Dato</label>
+            <input type="date" id="play_date" name="play_date" required>
+        </div>
+        <div class="form-group">
+            <label for="tee_time">Teetime</label>
+            <input type="time" id="tee_time" name="tee_time" required>
+        </div>
+        <button type="submit" class="button">Lagre</button>
+    </form>
+    <a href="{{ url_for('list_rounds') }}" class="button">Tilbake</a>
+{% endblock %}

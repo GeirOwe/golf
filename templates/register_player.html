@@ -3,7 +3,10 @@
 {% block title %}Registrer Spiller{% endblock %}
 
 {% block content %}
-    <h1>Ny Spiller</h1>
+    <h1>Registrer Ny Spiller</h1>
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
     <form method="POST" action="{{ url_for('add_player') }}">
         <div class="form-group">
             <label for="player_name">Spillernavn:</label>

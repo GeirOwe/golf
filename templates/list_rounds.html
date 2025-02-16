@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Golfrunder{% endblock %}
+
+{% block content %}
+    <h1>Golfrunder</h1>
+    {% if rounds %}
+    <table class="round-table">
+        <thead>
+            <tr>
+                <th class="date-column">Dato</th>
+                <th class="course-column">Bane</th>
+                <th class="time-column">Teetime</th>
+                <th class="actions-column">Handlinger</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for round in rounds %}
+            <tr>
+                <td class="date-column">{{ round.play_date.strftime('%A %d.%m').capitalize() }}</td>
+                <td class="course-column">{{ round.course_name }}</td>
+                <td class="time-column">{{ round.tee_time }}</td>
+                <td class="actions-column">
+                    <form method="POST" 
+                          action="{{ url_for('delete_round', round_id=round.id) }}" 
+                          style="display: inline;"
+                          onsubmit="return confirm('Er du sikker på at du vil slette denne runden?');">
+                        <button type="submit" class="btn-delete">Slett</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Ingen golfrunder registrert ennå.</p>
+    {% endif %}
+    <a href="{{ url_for('add_round') }}" class="button">Ny Runde</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}
