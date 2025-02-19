@@ -187,6 +187,7 @@
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            text-align: center;
         }
 
         /* Buttons */
@@ -302,6 +303,26 @@
             border-radius: 4px;
             padding: 10px;
             margin-bottom: 15px;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 600px) {
+            .player-table th,
+            .player-table td {
+                padding: 6px;
+            }
+
+            .player-table {
+                margin: 10px 0;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            h2 {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
