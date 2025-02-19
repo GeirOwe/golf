@@ -197,11 +197,26 @@ def manage_scores(round_id):
 
 @app.route("/scores")
 def list_scores():
-    """Display all scores sorted by round date."""
-    # Get all rounds with scores, sorted by date
-    rounds = Round.query.join(RoundScore).order_by(Round.play_date.asc()).distinct().all()
+    """Display player scores sorted by total score."""
     players = Player.get_all()
-    return render_template("list_scores.html", rounds=rounds, players=players)
+    
+    # Get scores for each player
+    player_scores = []
+    for player in players:
+        scores = RoundScore.query.filter_by(player_id=player.id).all()
+        if scores:  # Only include players with scores
+            total_score = sum(score.score for score in scores)
+            score_list = [score.score for score in scores]
+            player_scores.append({
+                'name': player.name,
+                'total': total_score,
+                'scores': score_list
+            })
+    
+    # Sort by total score descending
+    player_scores.sort(key=lambda x: x['total'], reverse=True)
+    
+    return render_template("list_scores.html", player_scores=player_scores)
 
 @app.route("/admin/db/reset", methods=["POST"])
 def reset_database():
