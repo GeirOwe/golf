@@ -13,9 +13,10 @@ class Player(db.Model):
     name = db.Column(db.String(80), nullable=False)
     handicap = db.Column(db.Float, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    MAX_HANDICAP = 36.0
+    MAX_HANDICAP = 54.0  # Updated from 36.0
 
     def __init__(self, name: str, handicap: float = 0):
+        """Initialize a new player with handicap validation."""
         if handicap > self.MAX_HANDICAP:
             raise HandicapError(f"Handicap cannot be greater than {self.MAX_HANDICAP}")
         self.name = name
