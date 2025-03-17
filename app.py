@@ -229,6 +229,11 @@ def reset_database():
     except Exception as e:
         return redirect(url_for("home", error=f"Database reset failed: {str(e)}"))
 
+@app.route("/flights")
+def show_flights():
+    """Display the flight setup for each day."""
+    return render_template("flight_setup.html")
+
 # Error Handlers
 @app.errorhandler(404)
 def page_not_found(e):

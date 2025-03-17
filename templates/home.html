@@ -15,12 +15,15 @@
     <div class="menu">
         <h2>Spillere</h2>
         <a href="{{ url_for('register_player') }}" class="menu-item">Ny Spiller</a>
-        <a href="{{ url_for('list_players') }}" class="menu-item">Se Spillere</a>
+        <a href="{{ url_for('list_players') }}" class="menu-item">Spillere</a>
         
         <h2>Runder</h2>
         <a href="{{ url_for('add_round') }}" class="menu-item">Ny Runde</a>
-        <a href="{{ url_for('list_rounds') }}" class="menu-item">Se Runder</a>
-        
+        <a href="{{ url_for('list_rounds') }}" class="menu-item">Runder</a>
+         
+        <h2>Informasjon</h2>
+        <a href="{{ url_for('show_flights') }}" class="menu-item">Spille oppsett</a>
+
         <h2>Score</h2>
         <a href="{{ url_for('list_scores') }}" class="menu-item">Tabell</a>
     </div>
