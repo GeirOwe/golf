@@ -207,9 +207,11 @@ def list_scores():
         if scores:  # Only include players with scores
             total_score = sum(score.score for score in scores)
             score_list = [score.score for score in scores]
+            avg_score = round(total_score / len(scores), 1) if scores else 0
             player_scores.append({
                 'name': player.name,
                 'total': total_score,
+                'avg': avg_score,
                 'scores': score_list
             })
     

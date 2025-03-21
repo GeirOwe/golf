@@ -11,6 +11,7 @@
                 <tr>
                     <th class="name-column">Spiller</th>
                     <th class="total-column">Total</th>
+                    <th class="avg-column">Snitt</th>
                     <th class="scores-column">Score</th>
                 </tr>
             </thead>
@@ -19,6 +20,7 @@
                 <tr>
                     <td class="name-column">{{ player.name }}</td>
                     <td class="total-column">{{ player.total }}</td>
+                    <td class="avg-column">{{ player.avg }}</td>
                     <td class="scores-column">{{ player.scores|join(', ') }}</td>
                 </tr>
                 {% endfor %}
