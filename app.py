@@ -236,6 +236,11 @@ def show_flights():
     """Display the flight setup for each day."""
     return render_template("flight_setup.html")
 
+@app.route("/dress-code")
+def show_dress_code():
+    """Display the static dress code information."""
+    return render_template("dress_code.html")
+
 # Error Handlers
 @app.errorhandler(404)
 def page_not_found(e):
