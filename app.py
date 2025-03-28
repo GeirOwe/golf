@@ -204,16 +204,18 @@ def list_scores():
     player_scores = []
     for player in players:
         scores = RoundScore.query.filter_by(player_id=player.id).all()
-        if scores:  # Only include players with scores
-            total_score = sum(score.score for score in scores)
-            score_list = [score.score for score in scores]
-            avg_score = round(total_score / len(scores), 1) if scores else 0
-            player_scores.append({
-                'name': player.name,
-                'total': total_score,
-                'avg': avg_score,
-                'scores': score_list
-            })
+        if scores:
+            # Filter out zeros and empty scores
+            valid_scores = [score.score for score in scores if score.score]
+            if valid_scores:  # Only process if there are valid scores
+                total_score = sum(valid_scores)
+                avg_score = round(total_score / len(valid_scores), 1)
+                player_scores.append({
+                    'name': player.name,
+                    'total': total_score,
+                    'avg': avg_score,
+                    'scores': valid_scores
+                })
     
     # Sort by total score descending
     player_scores.sort(key=lambda x: x['total'], reverse=True)
