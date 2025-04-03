@@ -1,306 +1,117 @@
-# Golf Player Management Application
+# Golf Tournament Management Application
 
 ## Overview
-A Flask web application for managing golf players with in-memory storage and Render.com deployment.
+A Flask web application for managing golf tournament players, rounds, and scores.
+Deployed on Render.com: https://golf-app-w497.onrender.com
 
-## Local Development Setup
+## Setup
 
-### Prerequisites
-- Python 3.9+
-- macOS 10.15+
-- Visual Studio Code
-- Git
-
-### Initial Setup
-
-1. **Create Local Project**
+1. **Clone Repository**
 ```bash
-# Create project directory
-mkdir ~/Documents/GitHub/golf
-cd ~/Documents/GitHub/golf
+git clone https://github.com/yourusername/golf.git
+cd golf
 ```
 
-2. **Initialize Git and Create Project Structure**
-```bash
-# Initialize git repository
-git init
-
-# Create project files
-touch app.py models.py requirements.txt
-mkdir templates
-touch templates/base.html templates/home.html templates/list_players.html templates.register_player.html
-```
-
-3. **Set Up Python Environment**
+2. **Set Up Python Environment**
 ```bash
 # Create and activate virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
-pip install Flask==3.0.2 gunicorn==23.0.0
-
-# Create requirements.txt
-pip freeze > requirements.txt
+pip install -r requirements.txt
 ```
 
-4. **Connect to GitHub**
+3. **Environment Configuration**
+Create a `.env` file:
 ```bash
-# Create .gitignore
-echo "venv/" > .gitignore
-echo "__pycache__/" >> .gitignore
-echo "*.pyc" >> .gitignore
-
-# Initial commit
-git add .
-git commit -m "Initial commit"
-
-# Connect to GitHub repository
-git remote add origin https://github.com/yourusername/golf.git
-git branch -M main
-git push -u origin main
-```
-
-### Project Structure
-```plaintext
-golf/
-├── .git/               # Git repository
-├── .gitignore         # Git ignore file
-├── app.py             # Flask application & routes
-├── models.py          # Player model with in-memory storage
-├── requirements.txt   # Project dependencies
-├── venv/              # Virtual environment (not in git)
-└── templates/         # HTML templates
-    ├── base.html     # Base template with styling
-    ├── home.html     # Home page
-    ├── list_players.html    # Player listing
-    └── register_player.html # Registration form
-```
-
-## Application Components
-
-### Flask Application (`app.py`)
-```python
-# Main routes:
-@app.route("/")                    # Home page
-@app.route("/register")            # Display registration form
-@app.route("/add_player")          # Process new player
-@app.route("/players")             # List all players
-@app.route("/player/<id>/delete")  # Delete player
-```
-
-### Player Model (`models.py`)
-```python
-class Player:
-    players = []  # In-memory storage
-    
-    @classmethod
-    def get_all(cls):
-        return cls.players
-    
-    @classmethod
-    def get_by_id(cls, player_id):
-        return next((p for p in cls.players if p.id == player_id), None)
-```
-
-### Key Features
-1. **In-Memory Storage**
-   - Data stored in Python list
-   - Resets on application restart
-   - Simple but non-persistent
-
-2. **@classmethod Implementation**
-   - Efficient data access
-   - No instance creation needed
-   - Clean code structure
-
-3. **RESTful Routes**
-   - Clear URL structure
-   - Proper HTTP methods
-   - Redirects after actions
-
-## Deployment to Render.com
-
-### Requirements
-```python
-# filepath: requirements.txt
-Flask==3.0.2
-gunicorn==23.0.0
-```
-
-### Render Configuration
-```yaml
-# filepath: render.yaml
-services:
-  - type: web
-    name: golf-app
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.9.0
-      - key: FLASK_ENV
-        value: production
-```
-
-### Deployment Steps
-1. Push code to GitHub
-2. Connect to Render.com
-3. Create new Web Service
-4. Configure environment:
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `gunicorn app:app`
-
-### Render.com Notes
-- Free tier limitations:
-  - Instance spins down with inactivity
-  - ~50 second cold start
-  - Non-persistent storage
-- URL: https://golf-app-w497.onrender.com
-- Dashboard: https://dashboard.render.com/web/srv-cul4m20gph6c738frqj0
-
-## Local Development
-
-### Running the Application
-```bash
-# Start development server
-python app.py
-
-# Access application
-open http://localhost:5000
-```
-
-### Development Notes
-- Debug mode enabled locally
-- Auto-reload on code changes
-- In-memory data resets on restart
-
-## Testing
-```bash
-# Install pytest (when needed)
-pip install pytest
-
-# Run tests (when implemented)
-pytest
-```
-
-## Future Improvements
-1. Add persistent storage
-2. Implement user authentication
-3. Add score tracking
-4. Improve error handling
-5. Add input validation
-
-# PostgreSQL Setup and Commands
-
-## Local Installation (macOS)
-
-```bash
-# Install PostgreSQL using Homebrew
-brew install postgresql@16
-
-# Start PostgreSQL service
-brew services start postgresql@16
-
-# Add to PATH (add to ~/.zshrc)
-export PATH="/usr/local/opt/postgresql@16/bin:$PATH"
-```
-
-## Database Commands
-
-### Basic Database Management
-```bash
-# Create database
-createdb golf_dev
-
-# Delete database
-dropdb golf_dev
-
-# List all databases
-psql -l
-
-# Connect to database
-psql golf_dev
-```
-
-### Useful PSQL Commands
-```sql
--- List all tables
-\dt
-
--- Describe table
-\d players
-
--- List all users
-\du
-
--- Exit psql
-\q
-
--- Clear screen
-\! clear
-```
-
-### Common SQL Queries
-```sql
--- View all players
-SELECT * FROM players;
-
--- Delete all players
-DELETE FROM players;
-
--- Reset auto-increment
-ALTER SEQUENCE players_id_seq RESTART WITH 1;
-
--- Count players
-SELECT COUNT(*) FROM players;
-```
-
-## Database Connection
-
-### Local Development
-```bash
-# Environment variables for local development
-DATABASE_URL=postgresql://localhost/golf_dev
+DATABASE_URL=postgresql://username:password@localhost:5432/golf_db
 FLASK_ENV=development
 ```
 
-### Render.com Connection
-- Database Name: golf_db_jn45
-- Connection string format: 
-  `postgresql://user:password@host:port/database`
-- Connection managed through Render.com environment variables
-
-## Troubleshooting
-
-### Service Status
-```bash
-# Check PostgreSQL service status
-brew services list
-
-# Restart PostgreSQL service
-brew services restart postgresql@16
-
-# Stop PostgreSQL service
-brew services stop postgresql@16
+## Project Structure
+```plaintext
+golf/
+├── app.py             # Flask application & routes
+├── database.py        # Database models
+├── models.py          # Custom exceptions
+├── requirements.txt   # Project dependencies
+└── templates/         # HTML templates
+    ├── base.html           # Base template with styling
+    ├── home.html          # Home page
+    ├── list_players.html  # Player listing
+    ├── list_rounds.html   # Rounds listing
+    ├── list_scores.html   # Score overview
+    ├── flight_setup.html  # Flight assignments
+    ├── dress_code.html    # Daily dress codes
+    └── manage_scores.html # Score entry form
 ```
 
-### Common Issues
-1. **Connection refused**
-   ```bash
-   # Start PostgreSQL service
-   brew services start postgresql@16
-   ```
+## Features
 
-2. **Database doesn't exist**
-   ```bash
-   # Create database
-   createdb golf_dev
-   ```
+### Player Management
+- Register players with handicap
+- View player list
+- Update player information
+- Maximum handicap: 54.0
 
-3. **Permission denied**
-   ```bash
-   # Create superuser
-   createuser -s $USER
-   ```
+### Round Management
+- Create new rounds with:
+  - Course name
+  - Play date
+  - Tee time
+  - Pickup location
+- View all rounds
+- Update round details
+
+### Score Tracking
+- Enter scores per player per round
+- View total scores and averages
+- Automatic calculation excluding zeros
+- Order of Merit table
+
+### Tournament Information
+- Flight assignments per day
+- Daily dress code requirements
+- Norwegian date formatting
+
+## Database Schema
+
+### Players Table
+```sql
+CREATE TABLE players (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(80) NOT NULL,
+    handicap FLOAT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Rounds Table
+```sql
+CREATE TABLE rounds (
+    id SERIAL PRIMARY KEY,
+    course_name VARCHAR(100) NOT NULL,
+    play_date TIMESTAMP NOT NULL,
+    tee_time VARCHAR(5) NOT NULL,
+    pick_up VARCHAR(12),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Round Scores Table
+```sql
+CREATE TABLE round_scores (
+    id SERIAL PRIMARY KEY,
+    round_id INTEGER REFERENCES rounds(id),
+    player_id INTEGER REFERENCES players(id),
+    score INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Deployment
+The application is deployed on Render.com using:
+- Python 3.9+
+- PostgreSQL database
+- Gunicorn web server

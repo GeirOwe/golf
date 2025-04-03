@@ -243,6 +243,11 @@ def show_dress_code():
     """Display the static dress code information."""
     return render_template("dress_code.html")
 
+@app.route("/local-rules")
+def show_local_rules():
+    """Display the local rules for the tournament."""
+    return render_template("local_rules.html")
+
 # Error Handlers
 @app.errorhandler(404)
 def page_not_found(e):

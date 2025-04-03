@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Lokale regler{% endblock %}
+
+{% block content %}
+    <h1>Lokale regler</h1>
+    
+    <div class="rules-container">
+        <ul class="rules-list">
+            <li>Vi spiller Stableford i alle runder. Antall motatte slag er lik ditt handicap.</li>
+            <li>Ballplassering en køllelengde overalt, unntatt i hinder og på green. Ballen kan ikke plasseres nærmere flagget.</li>
+            <li>Birdie skål er obligatorisk! 😊</li>
+        </ul>
+    </div>
+    
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}
