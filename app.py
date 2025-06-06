@@ -78,7 +78,7 @@ def list_players():
 
 @app.route("/player/<int:player_id>/delete", methods=["POST"])
 def delete_player(player_id):
-    """Delete a player by ID."""
+    """Delete a player."""
     player = Player.get_by_id(player_id)
     if player:
         player.delete()
@@ -136,7 +136,7 @@ def add_round():
 
 @app.route("/round/<int:round_id>/delete", methods=["POST"])
 def delete_round(round_id):
-    """Delete a round by ID."""
+    """Delete a round."""
     round = Round.get_by_id(round_id)
     if round:
         round.delete()
@@ -221,6 +221,16 @@ def list_scores():
     player_scores.sort(key=lambda x: x['total'], reverse=True)
     
     return render_template("list_scores.html", player_scores=player_scores)
+
+@app.route("/scores/reset", methods=["POST"])
+def reset_scores():
+    """Delete all registered scores."""
+    try:
+        RoundScore.query.delete()
+        db.session.commit()
+        return redirect(url_for("list_scores", message="Alle scorer er slettet"))
+    except Exception as e:
+        return redirect(url_for("list_scores", error=f"Kunne ikke slette scorer: {str(e)}"))
 
 @app.route("/admin/db/reset", methods=["POST"])
 def reset_database():

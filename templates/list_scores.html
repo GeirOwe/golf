@@ -4,6 +4,14 @@
 
 {% block content %}
     <h1>Tabell OOM</h1>
+    
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="success-message">{{ message }}</div>
+    {% endif %}
+    
     {% if player_scores %}
     <div class="score-container">
         <table class="score-table">
@@ -27,8 +35,18 @@
             </tbody>
         </table>
     </div>
+    
+    <div class="action-buttons">
+        <a href="{{ url_for('home') }}" class="button">Hjem</a>
+        <form method="POST" 
+              action="{{ url_for('reset_scores') }}" 
+              style="display: inline;"
+              onsubmit="return confirm('Er du sikker på at du vil slette ALLE scorer?');">
+            <button type="submit" class="btn-danger">Slett Alle Scorer</button>
+        </form>
+    </div>
     {% else %}
     <p>Ingen scorer registrert ennå.</p>
-    {% endif %}
     <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    {% endif %}
 {% endblock %}
