@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 try:
     locale.setlocale(locale.LC_TIME, 'nb_NO.UTF-8')
 except locale.Error:
+    # Fallback if Norwegian locale is not available
     locale.setlocale(locale.LC_TIME, '')
 
 def create_app():

@@ -11,14 +11,16 @@
                 <th class="date-column">Dato</th>
                 <th class="course-column">Bane</th>
                 <th class="time-column">Teetime</th>
-                <th class="pickup-column">Henting</th>
+                <th class="pickup-column">Avreise</th>
                 <th class="actions-column">Handlinger</th>
             </tr>
         </thead>
         <tbody>
             {% for round in rounds %}
             <tr>
-                <td class="date-column">{{ round.play_date.strftime('%A %d.%m').capitalize() }}</td>
+                <td class="date-column">
+                    {{ round.play_date.strftime('%A %d.%m').capitalize() }}
+                </td>
                 <td class="course-column">{{ round.course_name }}</td>
                 <td class="time-column">{{ round.tee_time }}</td>
                 <td class="pickup-column">{{ round.pick_up or '' }}</td>
