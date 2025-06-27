@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Golf AI Story{% endblock %}
+
+{% block content %}
+    <h1>Golf AI Story</h1>
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% elif story %}
+        <div class="story-box">{{ story }}</div>
+    {% endif %}
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}

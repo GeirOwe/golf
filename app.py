@@ -12,6 +12,7 @@ from flask import Flask, render_template, request, redirect, url_for
 from database import db, Player, Round, RoundScore  # Add RoundScore to imports
 from models import HandicapError
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Set Norwegian locale for date formatting
 try:
@@ -95,9 +96,9 @@ def update_player(player_id):
     if request.method == "POST":
         new_handicap = float(request.form.get("handicap", player.handicap))
         if new_handicap > Player.MAX_HANDICAP:
-            return render_template("update_player.html", 
-                                player=player, 
-                                error=f"Handicap cannot be greater than {Player.MAX_HANDICAP}")
+            return render_template("update_player.html",
+                    player=player,
+                    error=f"Handicap cannot be greater than {Player.MAX_HANDICAP}")
         
         player.name = request.form.get("player_name", player.name)
         player.handicap = new_handicap
@@ -258,6 +259,22 @@ def show_dress_code():
 def show_local_rules():
     """Display the local rules for the tournament."""
     return render_template("local_rules.html")
+
+@app.route("/ai-story")
+def unicorn_story():
+    """Generate and display an AI story."""
+    story = None
+    error = None
+    try:
+        client = OpenAI()
+        response = client.responses.create(
+            model="gpt-4.1-nano",
+            input="Write a one-sentence joke about golf."
+        )
+        story = response.output_text
+    except Exception as e:
+        error = f"Feil ved henting av AI-historie: {str(e)}"
+    return render_template("unicorn_story.html", story=story, error=error)
 
 # Error Handlers
 @app.errorhandler(404)
