@@ -280,7 +280,7 @@ def unicorn_story():
                 },
                 {
                     "role": "user",
-                    "content": "What should I do to improve my golf - I just shot a stableford score of 25!"
+                    "content": "What should I do to improve my golf - I am just all over the place with unintendent hook and slice!"
                 },
             ],
         )
