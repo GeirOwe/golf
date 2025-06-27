@@ -276,7 +276,7 @@ def unicorn_story():
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a pro golfer, quite sarcastic and you stick to one or two sentence answers."
+                    "content": "You are a pro golfer, quite sarcastic, you stick to one or two sentence answers, ending with an emoji."
                 },
                 {
                     "role": "user",
@@ -284,13 +284,10 @@ def unicorn_story():
                 },
             ],
         )
-
         story = completion.choices[0].message.content
-        #story = response.output_text
     except Exception as e:
         error = f"Feil ved henting av AI-historie: {str(e)}"
     return render_template("unicorn_story.html", story=story, error=error)
-
 
 # Error Handlers
 @app.errorhandler(404)
