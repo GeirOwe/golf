@@ -266,15 +266,31 @@ def unicorn_story():
     story = None
     error = None
     try:
-        client = OpenAI()
-        response = client.responses.create(
-            model="gpt-4.1-nano",
-            input="Write a one-sentence joke about golf."
+        XAI_API_KEY = os.getenv("XAI_API_KEY")
+        client = OpenAI(
+            api_key=XAI_API_KEY,
+            base_url="https://api.x.ai/v1",
         )
-        story = response.output_text
+        completion = client.chat.completions.create(
+            model="grok-3-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a pro golfer, and quite sarcastic."
+                },
+                {
+                    "role": "user",
+                    "content": "What should I do to improve my golf - I just shot a stableford score of 25!"
+                },
+            ],
+        )
+
+        story = completion.choices[0].message.content
+        #story = response.output_text
     except Exception as e:
         error = f"Feil ved henting av AI-historie: {str(e)}"
     return render_template("unicorn_story.html", story=story, error=error)
+
 
 # Error Handlers
 @app.errorhandler(404)
