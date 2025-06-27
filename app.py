@@ -280,7 +280,7 @@ def unicorn_story():
                 },
                 {
                     "role": "user",
-                    "content": "What should I do to improve my golf - I am just all over the place!"
+                    "content": "What should I do to improve my golf - I am just all over the place and I guess the two beers didnt help :-)"
                 },
             ],
         )
