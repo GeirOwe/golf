@@ -21,14 +21,14 @@
                 <td class="actions-column">
                     <a href="{{ url_for('update_player', player_id=player.id) }}" 
                        class="btn-update">Endre</a>
-                    {% comment %}
+                    {# Delete button commented out
                     <form method="POST" 
                           action="{{ url_for('delete_player', player_id=player.id) }}" 
                           style="display: inline;"
                           onsubmit="return confirm('Er du sikker på at du vil slette denne spilleren?');">
                         <button type="submit" class="btn-delete">Slett</button>
                     </form>
-                    {% endcomment %}
+                    #}
                 </td>
             </tr>
             {% endfor %}
