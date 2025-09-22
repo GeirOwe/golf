@@ -12,6 +12,12 @@
         <div class="success-message">{{ message }}</div>
     {% endif %}
     
+    {% if days_until is not none %}
+        <div class="countdown">
+            <h3>{{ days_until }} dager til avreise! 🏌️‍♂️</h3>
+        </div>
+    {% endif %}
+    
     <div class="menu">
         <h2>Spillere & Runder</h2>
         <a href="{{ url_for('list_players') }}" class="menu-item">HCP oversikt</a>

@@ -6,7 +6,7 @@ Deployed on Render.com: https://golf-app-w497.onrender.com
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, date
 import locale
 from flask import Flask, render_template, request, redirect, url_for
 from database import db, Player, Round, RoundScore  # Add RoundScore to imports
@@ -46,8 +46,16 @@ with app.app_context():
 # Basic Routes
 @app.route("/")
 def home():
-    """Render the home page."""
-    return render_template("home.html")
+    """Display home page with countdown to first tee time."""
+    first_round = Round.query.order_by(Round.play_date.asc()).first()
+    days_until = None
+    if first_round:
+        today = date.today()
+        tournament_date = first_round.play_date.date()
+        if tournament_date > today:
+            days_until = (tournament_date - today).days - 1
+    
+    return render_template("home.html", days_until=days_until)
 
 # Player Management Routes
 @app.route("/register", methods=["GET"])
