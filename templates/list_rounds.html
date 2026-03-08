@@ -9,7 +9,7 @@
     <table class="round-table">
         <thead>
             <tr>
-                <th class="date-column">Dag</th>
+                <th class="date-column">Dato</th>
                 <th class="course-column">Bane</th>
                 <th class="time-column">Teetime</th>
                 <th class="pickup-column">Avreise</th>
@@ -19,13 +19,13 @@
         <tbody>
             {% for round in rounds %}
             <tr>
-                <td class="date-column" data-label="Dag">
-                    {{ round.play_date.strftime('%A')[:3]|lower }}
+                <td class="date-column" data-label="Dato">
+                    {{ round.play_date.strftime('%A %d.%m')|capitalize }}
                 </td>
                 <td class="course-column" data-label="Bane">{{ round.course_name }}</td>
                 <td class="time-column" data-label="Teetime">{{ round.tee_time }}</td>
                 <td class="pickup-column" data-label="Avreise">{{ round.pick_up or '' }}</td>
-                <td class="actions-column" data-label="">
+                <td class="actions-column" data-label="Handlinger">
                     <a href="{{ url_for('manage_scores', round_id=round.id) }}" 
                        class="btn-score">Score</a>
                     {#
