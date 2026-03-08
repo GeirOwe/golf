@@ -4,12 +4,10 @@
 
 {% block content %}
     <h1>Dress Code</h1>
-    
+
     <div class="dress-code">
-        <div class="day-group">
-            <h3>Alle dager</h3>
-            <p>Valgfritt!</p>
-        </div>
-    
+        <img src="{{ url_for('static', filename='IMG_1318.jpeg') }}" alt="Dress code" class="dress-code-image">
+    </div>
+
     <a href="{{ url_for('home') }}" class="button">Hjem</a>
 {% endblock %}
