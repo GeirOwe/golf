@@ -5,10 +5,11 @@
 {% block content %}
     <h1>Golfrunder</h1>
     {% if rounds %}
+    <div class="round-table-wrap">
     <table class="round-table">
         <thead>
             <tr>
-                <th class="date-column">Dato</th>
+                <th class="date-column">Dag</th>
                 <th class="course-column">Bane</th>
                 <th class="time-column">Teetime</th>
                 <th class="pickup-column">Avreise</th>
@@ -18,13 +19,13 @@
         <tbody>
             {% for round in rounds %}
             <tr>
-                <td class="date-column">
-                    {{ round.play_date.strftime('%A %d.%m').capitalize() }}
+                <td class="date-column" data-label="Dag">
+                    {{ round.play_date.strftime('%A')[:3]|lower }}
                 </td>
-                <td class="course-column">{{ round.course_name }}</td>
-                <td class="time-column">{{ round.tee_time }}</td>
-                <td class="pickup-column">{{ round.pick_up or '' }}</td>
-                <td class="actions-column">
+                <td class="course-column" data-label="Bane">{{ round.course_name }}</td>
+                <td class="time-column" data-label="Teetime">{{ round.tee_time }}</td>
+                <td class="pickup-column" data-label="Avreise">{{ round.pick_up or '' }}</td>
+                <td class="actions-column" data-label="">
                     <a href="{{ url_for('manage_scores', round_id=round.id) }}" 
                        class="btn-score">Score</a>
                     {#
@@ -40,6 +41,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <p>Ingen golfrunder registrert ennå.</p>
     {% endif %}
