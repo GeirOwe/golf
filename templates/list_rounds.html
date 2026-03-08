@@ -20,7 +20,7 @@
             {% for round in rounds %}
             <tr>
                 <td class="date-column" data-label="Dato">
-                    {{ round.play_date.strftime('%A %d.%m')|capitalize }}
+                    {{ round.display_date }}
                 </td>
                 <td class="course-column" data-label="Bane">{{ round.course_name }}</td>
                 <td class="time-column" data-label="Teetime">{{ round.tee_time }}</td>

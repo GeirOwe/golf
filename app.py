@@ -21,6 +21,13 @@ except locale.Error:
     # Fallback if Norwegian locale is not available
     locale.setlocale(locale.LC_TIME, '')
 
+# Norwegian weekday names (index 0 = Monday), for display when server locale is not Norwegian
+WEEKDAYS_NO = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
+
+def format_date_norwegian(dt):
+    """Return date string with Norwegian weekday and dd.mm, e.g. 'Mandag 10.03'."""
+    return f"{WEEKDAYS_NO[dt.weekday()]} {dt.strftime('%d.%m')}"
+
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
@@ -120,6 +127,8 @@ def update_player(player_id):
 def list_rounds():
     """Display list of all rounds sorted by date."""
     rounds = Round.get_all()
+    for r in rounds:
+        r.display_date = format_date_norwegian(r.play_date)
     return render_template("list_rounds.html", rounds=rounds)
 
 @app.route("/round/new", methods=["GET", "POST"])
