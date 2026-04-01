@@ -8,8 +8,10 @@ Deployed on Render.com: https://golf-app-w497.onrender.com
 import os
 from datetime import datetime, date
 import locale
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from flask import Flask, render_template, request, redirect, url_for
-from database import db, Player, Round, RoundScore  # Add RoundScore to imports
+from database import db, Player, Round, RoundScore, FinaleScore
 from models import HandicapError
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -27,6 +29,104 @@ WEEKDAYS_NO = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'S
 def format_date_norwegian(dt):
     """Return date string with Norwegian weekday and dd.mm, e.g. 'Mandag 10.03'."""
     return f"{WEEKDAYS_NO[dt.weekday()]} {dt.strftime('%d.%m')}"
+
+
+def get_oom_bonus_by_player_id(players):
+    """Return bonus points based on OOM rank (1-4 => 4/3/2/1)."""
+    oom_rows = []
+    for player in players:
+        scores = RoundScore.query.filter_by(player_id=player.id).all()
+        valid_scores = [score.score for score in scores if score.score is not None]
+        total_score = sum(valid_scores) if valid_scores else 0
+        oom_rows.append({
+            "player_id": player.id,
+            "total": total_score,
+            "name": player.name
+        })
+
+    # Deterministic sort for tie handling
+    oom_rows.sort(key=lambda row: (-row["total"], row["name"]))
+
+    bonus_scale = [4, 3, 2, 1]
+    bonus_by_player_id = {player.id: 0 for player in players}
+    rank_by_player_id = {}
+
+    for idx, row in enumerate(oom_rows, start=1):
+        rank_by_player_id[row["player_id"]] = idx
+        if idx <= 4:
+            bonus_by_player_id[row["player_id"]] = bonus_scale[idx - 1]
+
+    return bonus_by_player_id, rank_by_player_id
+
+
+def build_finale_rows(players):
+    """Build finale rows using locked bonus from DB when available."""
+    live_bonus_by_player_id, rank_by_player_id = get_oom_bonus_by_player_id(players)
+    finale_score_rows = FinaleScore.query.all()
+    finale_scores_by_player_id = {row.player_id: row for row in finale_score_rows}
+
+    finale_rows = []
+    for player in players:
+        stored = finale_scores_by_player_id.get(player.id)
+        locked_bonus = stored.bonus if stored else live_bonus_by_player_id.get(player.id, 0)
+        finale_score = stored.score if stored else None
+        total = (finale_score if finale_score is not None else 0) + locked_bonus
+        finale_rows.append({
+            "player_id": player.id,
+            "name": player.name,
+            "oom_rank": rank_by_player_id.get(player.id, "-"),
+            "bonus": locked_bonus,
+            "finale_score": finale_score,
+            "total": total
+        })
+
+    # Players with score first, then by total desc, then name
+    finale_rows.sort(key=lambda row: (row["finale_score"] is None, -row["total"], row["name"]))
+
+    place = 0
+    previous_total = None
+    for row in finale_rows:
+        if row["finale_score"] is None:
+            row["place"] = None
+            continue
+        if row["total"] != previous_total:
+            place += 1
+            previous_total = row["total"]
+        row["place"] = place
+
+    return finale_rows
+
+
+def backfill_finale_bonus_if_needed(players):
+    """Populate locked bonus for legacy finale rows that still have 0/None."""
+    bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
+    existing_rows = FinaleScore.query.all()
+    if not existing_rows:
+        return
+
+    updated = False
+    for row in existing_rows:
+        expected_bonus = bonus_by_player_id.get(row.player_id, 0)
+        # Legacy fix: rows created before bonus-lock feature can have 0/None for everyone.
+        if expected_bonus > 0 and (row.bonus is None or row.bonus == 0):
+            row.bonus = expected_bonus
+            updated = True
+
+    if updated:
+        db.session.commit()
+
+
+def ensure_finale_bonus_column():
+    """Add finale_scores.bonus for existing databases missing this column."""
+    try:
+        db.session.execute(text(
+            "ALTER TABLE finale_scores ADD COLUMN IF NOT EXISTS bonus INTEGER DEFAULT 0"
+        ))
+        db.session.commit()
+    except SQLAlchemyError:
+        # Safety fallback: if table does not exist yet (or DB does not support this DDL),
+        # continue startup and let create_all/model usage handle table creation.
+        db.session.rollback()
 
 def create_app():
     """Create and configure the Flask application."""
@@ -49,6 +149,7 @@ app = create_app()
 # Ensure database tables exist
 with app.app_context():
     db.create_all()
+    ensure_finale_bonus_column()
 
 # Basic Routes
 @app.route("/")
@@ -250,6 +351,57 @@ def reset_scores():
         return redirect(url_for("list_scores", message="Alle scorer er slettet"))
     except Exception as e:
         return redirect(url_for("list_scores", error=f"Kunne ikke slette scorer: {str(e)}"))
+
+
+@app.route("/finale", methods=["GET", "POST"])
+def finale():
+    """Register finale scores and calculate total with OOM bonus."""
+    players = Player.get_all()
+    bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
+    backfill_finale_bonus_if_needed(players)
+
+    if request.method == "POST":
+        # Freeze bonus snapshot at first finale save by creating missing rows.
+        for player in players:
+            existing = FinaleScore.query.filter_by(player_id=player.id).first()
+            if not existing:
+                db.session.add(FinaleScore(
+                    player_id=player.id,
+                    bonus=bonus_by_player_id.get(player.id, 0),
+                    score=None
+                ))
+
+        for player in players:
+            score_input = request.form.get(f"finale_score_{player.id}", "").strip()
+            if score_input == "":
+                continue
+
+            finale_score = FinaleScore.query.filter_by(player_id=player.id).first()
+            try:
+                value = int(score_input)
+            except ValueError:
+                continue
+
+            if finale_score:
+                finale_score.score = value
+
+        db.session.commit()
+        return redirect(url_for("finale"))
+
+    finale_rows = build_finale_rows(players)
+    winner = next((row for row in finale_rows if row["finale_score"] is not None), None)
+
+    return render_template("finale.html", finale_rows=finale_rows, winner=winner)
+
+
+@app.route("/finale/resultat")
+def finale_resultat():
+    """Show read-only final result table."""
+    players = Player.get_all()
+    finale_rows = build_finale_rows(players)
+    ranked_rows = [row for row in finale_rows if row["finale_score"] is not None]
+    winner = ranked_rows[0] if ranked_rows else None
+    return render_template("finale_resultat.html", finale_rows=ranked_rows, winner=winner)
 
 @app.route("/admin/db/reset", methods=["POST"])
 def reset_database():

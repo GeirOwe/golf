@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Finale{% endblock %}
+
+{% block content %}
+    <h1>Finale</h1>
+
+    {% if winner %}
+        <div class="success-message">
+            Leder akkurat nå: <strong>{{ winner.name }}</strong> med {{ winner.total }} poeng totalt.
+        </div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="score-container">
+            <table class="player-table">
+                <thead>
+                    <tr>
+                        <th>Plass</th>
+                        <th>Spiller</th>
+                        <th>OOM plass</th>
+                        <th>Bonus</th>
+                        <th>Finalescore</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in finale_rows %}
+                    <tr>
+                        <td>
+                            {% if row.place == 1 %}
+                                <span class="rank-badge rank-1">1</span>
+                            {% elif row.place == 2 %}
+                                <span class="rank-badge rank-2">2</span>
+                            {% elif row.place == 3 %}
+                                <span class="rank-badge rank-3">3</span>
+                            {% elif row.place %}
+                                <span class="rank-badge">{{ row.place }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.oom_rank }}</td>
+                        <td>{{ row.bonus }}</td>
+                        <td>
+                            <input type="number"
+                                   name="finale_score_{{ row.player_id }}"
+                                   value="{{ row.finale_score if row.finale_score is not none else '' }}"
+                                   min="0"
+                                   max="200"
+                                   class="score-input">
+                        </td>
+                        <td><strong>{{ row.total }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit" class="button">Lagre Finalescore</button>
+        <a href="{{ url_for('finale_resultat') }}" class="button">Finaleresultat</a>
+        <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    </form>
+{% endblock %}

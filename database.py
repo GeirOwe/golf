@@ -84,3 +84,17 @@ class RoundScore(db.Model):
     # Relationships
     round = db.relationship('Round', backref=db.backref('scores', lazy=True))
     player = db.relationship('Player', backref=db.backref('scores', lazy=True))
+
+
+class FinaleScore(db.Model):
+    """Model for storing one finale score per player."""
+    __tablename__ = 'finale_scores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False, unique=True)
+    bonus = db.Column(db.Integer, default=0)
+    score = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    player = db.relationship('Player', backref=db.backref('finale_score', uselist=False))

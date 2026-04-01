@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Finaleresultat{% endblock %}
+
+{% block content %}
+    <h1>Finaleresultat</h1>
+
+    {% if winner %}
+        <div class="success-message">
+            Vinner: <strong>{{ winner.name }}</strong> med {{ winner.total }} poeng.
+        </div>
+    {% endif %}
+
+    {% if finale_rows %}
+    <div class="score-container">
+        <table class="player-table">
+            <thead>
+                <tr>
+                    <th>Plass</th>
+                    <th>Spiller</th>
+                    <th>Bonus</th>
+                    <th>Finalescore</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in finale_rows %}
+                <tr>
+                    <td>
+                        {% if row.place == 1 %}
+                            <span class="rank-badge rank-1">1</span>
+                        {% elif row.place == 2 %}
+                            <span class="rank-badge rank-2">2</span>
+                        {% elif row.place == 3 %}
+                            <span class="rank-badge rank-3">3</span>
+                        {% else %}
+                            <span class="rank-badge">{{ row.place }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.name }}</td>
+                    <td>{{ row.bonus }}</td>
+                    <td>{{ row.finale_score }}</td>
+                    <td><strong>{{ row.total }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>Ingen finalescore registrert ennå.</p>
+    {% endif %}
+
+    <a href="{{ url_for('finale') }}" class="button">Tilbake til Finale</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}
