@@ -18,9 +18,9 @@
                 <tr>
                     <th>Plass</th>
                     <th>Spiller</th>
-                    <th>Bonus</th>
-                    <th>Finalescore</th>
                     <th>Total</th>
+                    <th>Finalescore</th>
+                    <th>Bonus</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,9 +38,9 @@
                         {% endif %}
                     </td>
                     <td>{{ row.name }}</td>
-                    <td>{{ row.bonus }}</td>
-                    <td>{{ row.finale_score }}</td>
                     <td><strong>{{ row.total }}</strong></td>
+                    <td>{{ row.finale_score }}</td>
+                    <td>{{ row.bonus }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
