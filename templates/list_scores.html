@@ -38,7 +38,6 @@
     
     <div class="action-buttons">
         <a href="{{ url_for('home') }}" class="button">Hjem</a>
-        {# Delete button commented out
         <form method="POST" 
               action="{{ url_for('reset_scores') }}" 
               style="display: inline;"
@@ -46,7 +45,6 @@
             <button type="submit" class="btn-danger">Slett Alle Scorer</button>
 
         </form>
-        #}
     </div>
     {% else %}
     <p>Ingen scorer registrert ennå.</p>
