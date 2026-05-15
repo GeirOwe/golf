@@ -347,10 +347,22 @@ def reset_scores():
     """Delete all registered scores."""
     try:
         RoundScore.query.delete()
+        FinaleScore.query.delete()
         db.session.commit()
         return redirect(url_for("list_scores", message="Alle scorer er slettet"))
     except Exception as e:
         return redirect(url_for("list_scores", error=f"Kunne ikke slette scorer: {str(e)}"))
+
+
+@app.route("/finale/reset", methods=["POST"])
+def reset_finale_scores():
+    """Delete all finale scores and locked bonus for a new tournament."""
+    try:
+        FinaleScore.query.delete()
+        db.session.commit()
+        return redirect(url_for("finale", message="Alle finalescorer er slettet"))
+    except Exception as e:
+        return redirect(url_for("finale", error=f"Kunne ikke slette finalescorer: {str(e)}"))
 
 
 @app.route("/finale", methods=["GET", "POST"])
@@ -391,7 +403,13 @@ def finale():
     finale_rows = build_finale_rows(players)
     winner = next((row for row in finale_rows if row["finale_score"] is not None), None)
 
-    return render_template("finale.html", finale_rows=finale_rows, winner=winner)
+    return render_template(
+        "finale.html",
+        finale_rows=finale_rows,
+        winner=winner,
+        message=request.args.get("message"),
+        error=request.args.get("error"),
+    )
 
 
 @app.route("/finale/resultat")

@@ -5,6 +5,13 @@
 {% block content %}
     <h1>Finale</h1>
 
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+        <div class="success-message">{{ message }}</div>
+    {% endif %}
+
     {% if winner %}
         <div class="success-message">
             Leder akkurat nå: <strong>{{ winner.name }}</strong> med {{ winner.total }} poeng totalt.
@@ -62,4 +69,13 @@
         <a href="{{ url_for('finale_resultat') }}" class="button">Finaleresultat</a>
         <a href="{{ url_for('home') }}" class="button">Hjem</a>
     </form>
+
+    <div class="action-buttons">
+        <form method="POST"
+              action="{{ url_for('reset_finale_scores') }}"
+              style="display: inline;"
+              onsubmit="return confirm('Er du sikker på at du vil slette alle finalescorer og bonus? OOM-scorer påvirkes ikke.');">
+            <button type="submit" class="btn-danger">Nullstill finale</button>
+        </form>
+    </div>
 {% endblock %}

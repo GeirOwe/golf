@@ -50,6 +50,14 @@
     <p>Ingen finalescore registrert ennå.</p>
     {% endif %}
 
-    <a href="{{ url_for('finale') }}" class="button">Tilbake til Finale</a>
-    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    <div class="action-buttons">
+        <a href="{{ url_for('finale') }}" class="button">Tilbake til Finale</a>
+        <a href="{{ url_for('home') }}" class="button">Hjem</a>
+        <form method="POST"
+              action="{{ url_for('reset_finale_scores') }}"
+              style="display: inline;"
+              onsubmit="return confirm('Er du sikker på at du vil slette alle finalescorer og bonus? OOM-scorer påvirkes ikke.');">
+            <button type="submit" class="btn-danger">Nullstill finale</button>
+        </form>
+    </div>
 {% endblock %}
