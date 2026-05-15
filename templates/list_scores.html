@@ -38,12 +38,13 @@
     
     <div class="action-buttons">
         <a href="{{ url_for('home') }}" class="button">Hjem</a>
+<!--    
         <form method="POST" 
               action="{{ url_for('reset_scores') }}" 
               style="display: inline;"
               onsubmit="return confirm('Er du sikker på at du vil slette ALLE scorer?');">
             <button type="submit" class="btn-danger">Slett Alle Scorer</button>
-
+-->
         </form>
     </div>
     {% else %}

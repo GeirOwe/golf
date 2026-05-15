@@ -70,12 +70,15 @@
         <a href="{{ url_for('home') }}" class="button">Hjem</a>
     </form>
 
-    <div class="action-buttons">
+<!--
+    <motion class="action-buttons">
         <form method="POST"
               action="{{ url_for('reset_finale_scores') }}"
               style="display: inline;"
               onsubmit="return confirm('Er du sikker på at du vil slette alle finalescorer og bonus? OOM-scorer påvirkes ikke.');">
             <button type="submit" class="btn-danger">Nullstill finale</button>
         </form>
-    </div>
+    </motion>
+-->
+    
 {% endblock %}
