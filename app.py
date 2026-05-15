@@ -161,7 +161,7 @@ def home():
         today = date.today()
         tournament_date = first_round.play_date.date()
         if tournament_date > today:
-            days_until = (tournament_date - today).days - 1
+            days_until = (tournament_date - today).days
     
     return render_template("home.html", days_until=days_until)
 
