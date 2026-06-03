@@ -8,7 +8,7 @@ from typing import Any
 import requests
 
 API_BASE = "https://api.golfcourseapi.com"
-DEFAULT_SEARCH = "stavanger golfklubb"
+DEFAULT_SEARCH = "bjaavann"
 
 # Extra search terms per country (API has no /countries endpoint – we search and filter)
 COUNTRY_SEARCH_TERMS: dict[str, list[str]] = {
