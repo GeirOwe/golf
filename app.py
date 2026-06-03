@@ -10,11 +10,17 @@ from datetime import datetime, date
 import locale
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, make_response
 from database import db, Player, Round, RoundScore, FinaleScore
 from models import HandicapError
 from dotenv import load_dotenv
 from openai import OpenAI
+from golfcourse_api import (
+    GolfCourseAPIError,
+    fetch_course_by_id,
+    list_courses_by_country,
+    lookup_course_ratings,
+)
 
 # Set Norwegian locale for date formatting
 try:
@@ -437,9 +443,74 @@ def show_flights():
     """Display the flight setup for each day."""
     return render_template("flight_setup.html")
 
+@app.route("/golf-course-api", methods=["GET", "POST"])
+def golf_course_api():
+    """Golf Course API: list courses by country and fetch CR/slope."""
+    country = "Norway"
+    courses = []
+    country_error = None
+    country_info = None
+
+    search_query = ""
+    course_id_input = ""
+    course_lookup = None
+    rating_error = None
+
+    if request.method == "POST":
+        form_type = request.form.get("form_type", "")
+
+        if form_type == "country":
+            country = (request.form.get("country") or country).strip()
+            try:
+                courses = list_courses_by_country(country)
+                country_info = (
+                    f"Fant {len(courses)} bane(r) med land = «{country}»."
+                )
+                if not courses:
+                    country_error = (
+                        f"Ingen baner med land «{country}» i API-et. "
+                        "Prøv f.eks. United States eller Portugal."
+                    )
+            except GolfCourseAPIError as exc:
+                country_error = str(exc)
+
+        elif form_type == "rating":
+            search_query = (request.form.get("search_query") or "").strip()
+            course_id_input = (request.form.get("course_id") or "").strip()
+            try:
+                if course_id_input.isdigit():
+                    course_lookup = fetch_course_by_id(int(course_id_input))
+                elif search_query:
+                    course_lookup = lookup_course_ratings(search_query)
+                else:
+                    rating_error = "Skriv søkeord eller course ID."
+            except GolfCourseAPIError as exc:
+                rating_error = str(exc)
+
+    response = make_response(render_template(
+        "golf_course_api.html",
+        country=country,
+        courses=courses,
+        country_error=country_error,
+        country_info=country_info,
+        search_query=search_query,
+        course_id_input=course_id_input,
+        course_lookup=course_lookup,
+        rating_error=rating_error,
+    ))
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/golf-courses", methods=["GET", "POST"])
+def golf_courses_by_country():
+    """Redirect old URL to Golf Course API page."""
+    return redirect(url_for("golf_course_api"))
+
+
 @app.route("/dress-code")
 def show_dress_code():
-    """Display the static dress code information."""
+    """Display scorecard images."""
     return render_template("dress_code.html")
 
 @app.route("/local-rules")
