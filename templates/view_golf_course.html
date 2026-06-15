@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.name }}{% endblock %}
+
+{% block content %}
+    <h1>{{ course.name }}</h1>
+
+    {% if message %}
+        <div class="success-message">{{ message }}</div>
+    {% endif %}
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Banenavn</label>
+            <input type="text" id="name" name="name" value="{{ course.name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="facility">Anlegg</label>
+            <input type="text" id="facility" name="facility" value="{{ course.facility }}" required>
+        </div>
+
+        <h2>Tee-steder</h2>
+        <p style="font-size:14px; color:#6c757d; margin-bottom:12px;">
+            Endre eksisterende rader eller fyll inn nye tee-steder nederst. Kolonner: kjønn, par, CR, slope.
+        </p>
+
+        {% if not course.tees %}
+        <p>Ingen tee-steder ennå – legg inn minst én rad under.</p>
+        {% endif %}
+
+        <div class="score-container">
+            <table class="player-table">
+                <thead>
+                    <tr>
+                        <th>Tee</th>
+                        <th>Kjønn</th>
+                        <th>Par</th>
+                        <th>CR</th>
+                        <th>Slope</th>
+                        <th>Mottatt slag (HCP 18)</th>
+                        <th>Mottatt slag (HCP 24)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tee in course.tees %}
+                    <tr>
+                        <td>
+                            <input type="hidden" name="tee_id" value="{{ tee.id }}">
+                            <input type="text" name="tee_name" value="{{ tee.name }}" class="score-input" style="width:100px;" required>
+                        </td>
+                        <td>
+                            <select name="tee_gender" class="score-input">
+                                {% for g in tee_genders %}
+                                <option value="{{ g }}" {% if tee.gender == g %}selected{% endif %}>{{ g }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="tee_par" value="{{ tee.par }}" min="27" max="80" class="score-input" required>
+                        </td>
+                        <td>
+                            <input type="number" name="tee_cr" value="{{ tee.course_rating }}" min="50" max="85" step="0.1" class="score-input" required>
+                        </td>
+                        <td>
+                            <input type="number" name="tee_slope" value="{{ tee.slope_rating }}" min="55" max="155" class="score-input" required>
+                        </td>
+                        <td>{{ course_handicap(18, tee.slope_rating, tee.course_rating, tee.par) }}</td>
+                        <td>{{ course_handicap(24, tee.slope_rating, tee.course_rating, tee.par) }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% set blank_rows = 4 if not course.tees else 2 %}
+                    {% for i in range(blank_rows) %}
+                    <tr>
+                        <td>
+                            <input type="hidden" name="tee_id" value="">
+                            <input type="text" name="tee_name" placeholder="Nytt tee" class="score-input" style="width:100px;">
+                        </td>
+                        <td>
+                            <select name="tee_gender" class="score-input">
+                                {% for g in tee_genders %}
+                                <option value="{{ g }}">{{ g }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="tee_par" min="27" max="80" class="score-input">
+                        </td>
+                        <td>
+                            <input type="number" name="tee_cr" min="50" max="85" step="0.1" class="score-input">
+                        </td>
+                        <td>
+                            <input type="number" name="tee_slope" min="55" max="155" class="score-input">
+                        </td>
+                        <td>–</td>
+                        <td>–</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <button type="submit" class="button">Lagre endringer</button>
+    </form>
+
+    <a href="{{ url_for('list_golf_courses') }}" class="button">Tilbake til liste</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Registrer bane{% endblock %}
+
+{% block content %}
+    <h1>Registrer bane</h1>
+
+    {% if error %}
+        <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="name">Banenavn</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="facility">Anlegg</label>
+            <input type="text" id="facility" name="facility" required placeholder="f.eks. Søgne Golfklubb">
+        </div>
+
+        <h2>Tee-steder</h2>
+        <p style="font-size:14px; color:#6c757d; margin-bottom:12px;">
+            Mottatte slag (WHS): Handicap Index × (Slope / 113) + (CR − Par).
+        </p>
+
+        <table class="player-table">
+            <thead>
+                <tr>
+                    <th>Tee</th>
+                    <th>Kjønn</th>
+                    <th>Par</th>
+                    <th>CR</th>
+                    <th>Slope</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(4) %}
+                <tr>
+                    <td>
+                        <input type="hidden" name="tee_id" value="">
+                        <input type="text" name="tee_name" placeholder="f.eks. Gul" class="score-input" style="width:100px;">
+                    </td>
+                    <td>
+                        <select name="tee_gender" class="score-input">
+                            {% for g in tee_genders %}
+                            <option value="{{ g }}">{{ g }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" name="tee_par" min="27" max="80" step="1" class="score-input">
+                    </td>
+                    <td>
+                        <input type="number" name="tee_cr" min="50" max="85" step="0.1" class="score-input">
+                    </td>
+                    <td>
+                        <input type="number" name="tee_slope" min="55" max="155" step="1" class="score-input">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="submit" class="button">Lagre bane</button>
+    </form>
+    <a href="{{ url_for('list_golf_courses') }}" class="button">Tilbake</a>
+{% endblock %}

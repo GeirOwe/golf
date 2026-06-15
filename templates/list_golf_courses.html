@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Baner{% endblock %}
+
+{% block content %}
+    <h1>Baner</h1>
+
+    {% if courses %}
+    <div class="score-container">
+        <table class="player-table">
+            <thead>
+                <tr>
+                    <th>Bane</th>
+                    <th>Anlegg</th>
+                    <th>Tee-steder</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                <tr>
+                    <td>{{ course.name }}</td>
+                    <td>{{ course.facility }}</td>
+                    <td>{{ course.tees|length }}</td>
+                    <td>
+                        <a href="{{ url_for('view_golf_course', course_id=course.id) }}" class="btn-update">Vis</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>Ingen baner registrert ennå.</p>
+    {% endif %}
+
+    <a href="{{ url_for('add_golf_course') }}" class="button">Ny bane</a>
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+{% endblock %}

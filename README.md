@@ -39,7 +39,6 @@ DATABASE_URL=postgresql://localhost/golf_dev
 FLASK_ENV=development
 OPENAI_API_KEY=your_openai_api_key_here
 # or for XAI: XAI_API_KEY=your_xai_api_key_here
-GOLFCOURSE_API_KEY=your_golfcourseapi_key_here
 ```
 
 ### 3. Run Locally

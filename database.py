@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 from typing import List, Optional
 from datetime import datetime
 from models import HandicapError
@@ -98,3 +99,43 @@ class FinaleScore(db.Model):
 
     # Relationships
     player = db.relationship('Player', backref=db.backref('finale_score', uselist=False))
+
+
+class GolfCourse(db.Model):
+    """Golf course with facility info and tee boxes."""
+    __tablename__ = 'golf_courses'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    facility = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    tees = db.relationship(
+        'CourseTee',
+        backref='course',
+        lazy=True,
+        cascade='all, delete-orphan',
+        order_by=lambda: desc(CourseTee.course_rating),
+    )
+
+    @classmethod
+    def get_all(cls):
+        return cls.query.order_by(cls.name.asc()).all()
+
+    @classmethod
+    def get_by_id(cls, course_id):
+        return cls.query.get(course_id)
+
+
+class CourseTee(db.Model):
+    """Tee box data for slope, CR and par (used for mottatte slag)."""
+    __tablename__ = 'course_tees'
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('golf_courses.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+    gender = db.Column(db.String(10), nullable=False, default='Herre')
+    par = db.Column(db.Integer, nullable=False)
+    course_rating = db.Column(db.Float, nullable=False)
+    slope_rating = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

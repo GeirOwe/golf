@@ -10,17 +10,11 @@ from datetime import datetime, date
 import locale
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from flask import Flask, render_template, request, redirect, url_for, make_response
-from database import db, Player, Round, RoundScore, FinaleScore
-from models import HandicapError
+from flask import Flask, render_template, request, redirect, url_for
+from database import db, Player, Round, RoundScore, FinaleScore, GolfCourse, CourseTee
+from models import HandicapError, course_handicap
 from dotenv import load_dotenv
 from openai import OpenAI
-from golfcourse_api import (
-    GolfCourseAPIError,
-    fetch_course_by_id,
-    list_courses_by_country,
-    lookup_course_ratings,
-)
 
 # Set Norwegian locale for date formatting
 try:
@@ -134,6 +128,76 @@ def ensure_finale_bonus_column():
         # continue startup and let create_all/model usage handle table creation.
         db.session.rollback()
 
+
+def ensure_course_tee_gender_column():
+    """Add course_tees.gender for existing databases missing this column."""
+    try:
+        db.session.execute(text(
+            "ALTER TABLE course_tees ADD COLUMN IF NOT EXISTS gender VARCHAR(10) DEFAULT 'Herre'"
+        ))
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+
+
+TEE_GENDERS = ("Herre", "Dame")
+
+
+def _parse_tee_rows_from_form(form):
+    """Parse tee rows from form lists. Returns list of dicts or error message."""
+    tee_ids = form.getlist("tee_id")
+    tee_names = form.getlist("tee_name")
+    tee_genders = form.getlist("tee_gender")
+    tee_pars = form.getlist("tee_par")
+    tee_crs = form.getlist("tee_cr")
+    tee_slopes = form.getlist("tee_slope")
+
+    rows = []
+    for tee_id, name, gender, par, cr, slope in zip(
+        tee_ids, tee_names, tee_genders, tee_pars, tee_crs, tee_slopes
+    ):
+        name = (name or "").strip()
+        if not name:
+            continue
+        gender = (gender or "").strip()
+        if gender not in TEE_GENDERS:
+            return None, f"Ugyldig kjønn for tee «{name}». Velg Herre eller Dame."
+        try:
+            rows.append({
+                "tee_id": int(tee_id) if (tee_id or "").strip().isdigit() else None,
+                "name": name,
+                "gender": gender,
+                "par": int(par),
+                "course_rating": float(cr),
+                "slope_rating": int(slope),
+            })
+        except (TypeError, ValueError):
+            return None, f"Ugyldige tall for tee «{name}»."
+    return rows, None
+
+
+def _apply_tee_rows(course, rows):
+    """Create or update tees on a course from parsed rows."""
+    for row in rows:
+        if row["tee_id"]:
+            tee = CourseTee.query.filter_by(id=row["tee_id"], course_id=course.id).first()
+            if not tee:
+                continue
+            tee.name = row["name"]
+            tee.gender = row["gender"]
+            tee.par = row["par"]
+            tee.course_rating = row["course_rating"]
+            tee.slope_rating = row["slope_rating"]
+        else:
+            db.session.add(CourseTee(
+                course_id=course.id,
+                name=row["name"],
+                gender=row["gender"],
+                par=row["par"],
+                course_rating=row["course_rating"],
+                slope_rating=row["slope_rating"],
+            ))
+
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
@@ -156,6 +220,7 @@ app = create_app()
 with app.app_context():
     db.create_all()
     ensure_finale_bonus_column()
+    ensure_course_tee_gender_column()
 
 # Basic Routes
 @app.route("/")
@@ -443,75 +508,121 @@ def show_flights():
     """Display the flight setup for each day."""
     return render_template("flight_setup.html")
 
-@app.route("/golf-course-api", methods=["GET", "POST"])
-def golf_course_api():
-    """Golf Course API: list courses by country and fetch CR/slope."""
-    country = "Norway"
-    courses = []
-    country_error = None
-    country_info = None
 
-    search_query = ""
-    course_id_input = ""
-    course_lookup = None
-    rating_error = None
+@app.route("/baner")
+def list_golf_courses():
+    """List all registered golf courses."""
+    courses = GolfCourse.get_all()
+    return render_template("list_golf_courses.html", courses=courses)
+
+
+@app.route("/baner/mottatte-slag")
+def list_course_handicaps():
+    """Show received strokes per player for a selected course and tee."""
+    courses = GolfCourse.get_all()
+    course_id = request.args.get("course_id", type=int)
+    tee_id = request.args.get("tee_id", type=int)
+
+    selected_course = GolfCourse.get_by_id(course_id) if course_id else None
+    selected_tee = None
+    player_rows = None
+
+    if selected_course and tee_id:
+        selected_tee = CourseTee.query.filter_by(
+            id=tee_id, course_id=selected_course.id
+        ).first()
+        if selected_tee:
+            player_rows = [
+                {
+                    "player": player,
+                    "strokes": course_handicap(
+                        player.handicap,
+                        selected_tee.slope_rating,
+                        selected_tee.course_rating,
+                        selected_tee.par,
+                    ),
+                }
+                for player in Player.get_all()
+            ]
+
+    return render_template(
+        "mottatte_slag.html",
+        courses=courses,
+        selected_course=selected_course,
+        selected_tee=selected_tee,
+        player_rows=player_rows,
+        course_id=course_id,
+        tee_id=tee_id,
+    )
+
+
+@app.route("/baner/ny", methods=["GET", "POST"])
+def add_golf_course():
+    """Register a golf course with tee boxes."""
+    error = None
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        facility = (request.form.get("facility") or "").strip()
+        rows, parse_error = _parse_tee_rows_from_form(request.form)
+
+        if not name or not facility:
+            error = "Banenavn og anlegg må fylles ut."
+        elif parse_error:
+            error = parse_error
+        elif not rows:
+            error = "Legg inn minst ett tee-sted."
+        else:
+            course = GolfCourse(name=name, facility=facility)
+            db.session.add(course)
+            db.session.flush()
+            _apply_tee_rows(course, rows)
+            db.session.commit()
+            return redirect(url_for("view_golf_course", course_id=course.id))
+
+    return render_template("add_golf_course.html", error=error, tee_genders=TEE_GENDERS)
+
+
+@app.route("/baner/<int:course_id>", methods=["GET", "POST"])
+def view_golf_course(course_id):
+    """Show and edit course details and tee data."""
+    course = GolfCourse.get_by_id(course_id)
+    if not course:
+        return redirect(url_for("list_golf_courses"))
+
+    error = None
+    message = request.args.get("message")
 
     if request.method == "POST":
-        form_type = request.form.get("form_type", "")
+        name = (request.form.get("name") or "").strip()
+        facility = (request.form.get("facility") or "").strip()
+        rows, parse_error = _parse_tee_rows_from_form(request.form)
 
-        if form_type == "country":
-            country = (request.form.get("country") or country).strip()
-            try:
-                courses = list_courses_by_country(country)
-                country_info = (
-                    f"Fant {len(courses)} bane(r) med land = «{country}»."
-                )
-                if not courses:
-                    country_error = (
-                        f"Ingen baner med land «{country}» i API-et. "
-                        "Prøv f.eks. United States eller Portugal."
-                    )
-            except GolfCourseAPIError as exc:
-                country_error = str(exc)
+        if not name or not facility:
+            error = "Banenavn og anlegg må fylles ut."
+        elif parse_error:
+            error = parse_error
+        elif not rows:
+            error = "Banen må ha minst ett tee-sted."
+        else:
+            course.name = name
+            course.facility = facility
+            _apply_tee_rows(course, rows)
+            db.session.commit()
+            return redirect(url_for(
+                "view_golf_course",
+                course_id=course.id,
+                message="Banen er oppdatert.",
+            ))
 
-        elif form_type == "rating":
-            search_query = (request.form.get("search_query") or "").strip()
-            course_id_input = (request.form.get("course_id") or "").strip()
-            try:
-                if course_id_input.isdigit():
-                    course_lookup = fetch_course_by_id(int(course_id_input))
-                elif search_query:
-                    course_lookup = lookup_course_ratings(search_query)
-                else:
-                    rating_error = "Skriv søkeord eller course ID."
-            except GolfCourseAPIError as exc:
-                rating_error = str(exc)
+    return render_template(
+        "view_golf_course.html",
+        course=course,
+        course_handicap=course_handicap,
+        tee_genders=TEE_GENDERS,
+        error=error,
+        message=message,
+    )
 
-    response = make_response(render_template(
-        "golf_course_api.html",
-        country=country,
-        courses=courses,
-        country_error=country_error,
-        country_info=country_info,
-        search_query=search_query,
-        course_id_input=course_id_input,
-        course_lookup=course_lookup,
-        rating_error=rating_error,
-    ))
-    response.headers["Cache-Control"] = "no-store"
-    return response
-
-
-@app.route("/golf-courses", methods=["GET", "POST"])
-def golf_courses_by_country():
-    """Redirect old URL to Golf Course API page."""
-    return redirect(url_for("golf_course_api"))
-
-
-@app.route("/dress-code")
-def show_dress_code():
-    """Display scorecard images."""
-    return render_template("dress_code.html")
 
 @app.route("/local-rules")
 def show_local_rules():

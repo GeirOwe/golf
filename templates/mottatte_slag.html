@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Mottatte slag{% endblock %}
+
+{% block content %}
+    <style>
+        .mottatte-slag-form select {
+            width: 100%;
+            max-width: 640px;
+            min-width: 280px;
+            padding: 8px 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+    </style>
+    <h1>Mottatte slag</h1>
+    <p style="font-size:14px; color:#6c757d; margin-bottom:24px;">
+        Velg bane og tee-sted for å se mottatte slag per spiller (WHS).
+    </p>
+
+    {% if courses %}
+    <form method="GET" class="mottatte-slag-form">
+        <div class="form-group">
+            <label for="course_id">Bane</label>
+            <select name="course_id" id="course_id" required>
+                <option value="">Velg bane</option>
+                {% for course in courses %}
+                <option value="{{ course.id }}" {% if course_id == course.id %}selected{% endif %}>
+                    {{ course.name }} ({{ course.facility }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="tee_id">Tee-sted</label>
+            <select name="tee_id" id="tee_id" required disabled>
+                <option value="">Velg tee-sted</option>
+                {% for course in courses %}
+                    {% for tee in course.tees %}
+                    <option value="{{ tee.id }}"
+                            data-course-id="{{ course.id }}"
+                            {% if tee_id == tee.id %}selected{% endif %}>
+                        {{ tee.name }} ({{ tee.gender }}) – par {{ tee.par }}, CR {{ tee.course_rating }}, slope {{ tee.slope_rating }}
+                    </option>
+                    {% endfor %}
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="button">Vis mottatte slag</button>
+    </form>
+
+    {% if selected_course and selected_tee %}
+        <h2>{{ selected_course.name }}</h2>
+        <p style="font-size:14px; color:#6c757d; margin-bottom:12px;">
+            {{ selected_tee.name }} ({{ selected_tee.gender }}) –
+            par {{ selected_tee.par }}, CR {{ selected_tee.course_rating }}, slope {{ selected_tee.slope_rating }}
+        </p>
+
+        {% if player_rows %}
+        <div class="score-container">
+            <table class="player-table">
+                <thead>
+                    <tr>
+                        <th>Spiller</th>
+                        <th>HCP</th>
+                        <th>Mottatte slag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in player_rows %}
+                    <tr>
+                        <td>{{ row.player.name }}</td>
+                        <td>{{ row.player.handicap }}</td>
+                        <td>{{ row.strokes }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p>Ingen spillere registrert ennå.</p>
+        {% endif %}
+    {% elif course_id and tee_id %}
+        <p class="error-message">Ugyldig bane eller tee-sted.</p>
+    {% endif %}
+
+    {% else %}
+    <p>Ingen baner registrert ennå.</p>
+    {% endif %}
+
+    <a href="{{ url_for('home') }}" class="button">Hjem</a>
+
+    <script>
+        (function () {
+            var courseSelect = document.getElementById('course_id');
+            var teeSelect = document.getElementById('tee_id');
+            if (!courseSelect || !teeSelect) return;
+
+            var allTeeOptions = Array.prototype.slice.call(teeSelect.querySelectorAll('option[data-course-id]'));
+
+            var initialTeeId = {{ tee_id|tojson if tee_id else 'null' }};
+
+            function updateTeeOptions() {
+                var courseId = courseSelect.value;
+                var preserveTeeId = teeSelect.value || (initialTeeId !== null ? String(initialTeeId) : '');
+
+                teeSelect.innerHTML = '<option value="">Velg tee-sted</option>';
+
+                if (!courseId) {
+                    teeSelect.disabled = true;
+                    return;
+                }
+
+                var matching = allTeeOptions.filter(function (opt) {
+                    return opt.getAttribute('data-course-id') === courseId;
+                });
+
+                matching.forEach(function (opt) {
+                    teeSelect.appendChild(opt.cloneNode(true));
+                });
+
+                teeSelect.disabled = matching.length === 0;
+
+                if (preserveTeeId && matching.some(function (opt) { return opt.value === preserveTeeId; })) {
+                    teeSelect.value = preserveTeeId;
+                }
+
+                initialTeeId = null;
+            }
+
+            courseSelect.addEventListener('change', updateTeeOptions);
+            updateTeeOptions();
+        })();
+    </script>
+{% endblock %}
