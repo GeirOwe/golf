@@ -20,8 +20,8 @@
                         <th>Plass</th>
                         <th>Spiller</th>
                         <th>OOM plass</th>
+                        <th>Finale</th>
                         <th>Bonus</th>
-                        <th>Finalescore</th>
                         <th>Total</th>
                     </tr>
                 </thead>
@@ -43,7 +43,6 @@
                         </td>
                         <td>{{ row.name }}</td>
                         <td>{{ row.oom_rank }}</td>
-                        <td>{{ row.bonus }}</td>
                         <td>
                             <input type="number"
                                    name="finale_score_{{ row.player_id }}"
@@ -52,6 +51,7 @@
                                    max="200"
                                    class="score-input">
                         </td>
+                        <td>{{ row.bonus }}</td>
                         <td><strong>{{ row.total }}</strong></td>
                     </tr>
                     {% endfor %}
