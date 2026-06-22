@@ -12,12 +12,6 @@
         <div class="success-message">{{ message }}</div>
     {% endif %}
 
-    {% if winner %}
-        <div class="success-message">
-            Leder akkurat nå: <strong>{{ winner.name }}</strong> med {{ winner.total }} poeng totalt.
-        </div>
-    {% endif %}
-
     <form method="POST">
         <div class="score-container">
             <table class="player-table">

@@ -5,12 +5,6 @@
 {% block content %}
     <h1>Finaleresultat</h1>
 
-    {% if winner %}
-        <div class="success-message">
-            Vinner: <strong>{{ winner.name }}</strong> med {{ winner.total }} poeng.
-        </div>
-    {% endif %}
-
     {% if finale_rows %}
     <div class="score-container">
         <table class="player-table">

@@ -478,12 +478,10 @@ def finale():
         return redirect(url_for("finale"))
 
     finale_rows = build_finale_rows(players)
-    winner = next((row for row in finale_rows if row["finale_score"] is not None), None)
 
     return render_template(
         "finale.html",
         finale_rows=finale_rows,
-        winner=winner,
         message=request.args.get("message"),
         error=request.args.get("error"),
     )
@@ -495,8 +493,7 @@ def finale_resultat():
     players = Player.get_all()
     finale_rows = build_finale_rows(players)
     ranked_rows = [row for row in finale_rows if row["finale_score"] is not None]
-    winner = ranked_rows[0] if ranked_rows else None
-    return render_template("finale_resultat.html", finale_rows=ranked_rows, winner=winner)
+    return render_template("finale_resultat.html", finale_rows=ranked_rows)
 
 @app.route("/admin/db/reset", methods=["POST"])
 def reset_database():
