@@ -36,11 +36,12 @@ def get_oom_bonus_by_player_id(players):
     oom_rows = []
     for player in players:
         scores = RoundScore.query.filter_by(player_id=player.id).all()
-        valid_scores = [score.score for score in scores if score.score is not None]
-        total_score = sum(valid_scores) if valid_scores else 0
+        valid_scores = [score.score for score in scores if score.score]
+        if not valid_scores:
+            continue
         oom_rows.append({
             "player_id": player.id,
-            "total": total_score,
+            "total": sum(valid_scores),
             "name": player.name
         })
 
@@ -59,23 +60,48 @@ def get_oom_bonus_by_player_id(players):
     return bonus_by_player_id, rank_by_player_id
 
 
+def finale_has_started():
+    """True once at least one finale score has been saved."""
+    return FinaleScore.query.filter(FinaleScore.score.isnot(None)).count() > 0
+
+
+def sync_locked_finale_bonus(players):
+    """Snapshot current OOM bonus for all players when finale starts."""
+    bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
+    for player in players:
+        row = FinaleScore.query.filter_by(player_id=player.id).first()
+        bonus = bonus_by_player_id.get(player.id, 0)
+        if row:
+            row.bonus = bonus
+        else:
+            db.session.add(FinaleScore(
+                player_id=player.id,
+                bonus=bonus,
+                score=None
+            ))
+
+
 def build_finale_rows(players):
-    """Build finale rows using locked bonus from DB when available."""
+    """Build finale rows; bonus follows live OOM until the first finale score is saved."""
     live_bonus_by_player_id, rank_by_player_id = get_oom_bonus_by_player_id(players)
     finale_score_rows = FinaleScore.query.all()
     finale_scores_by_player_id = {row.player_id: row for row in finale_score_rows}
+    use_locked_bonus = finale_has_started()
 
     finale_rows = []
     for player in players:
         stored = finale_scores_by_player_id.get(player.id)
-        locked_bonus = stored.bonus if stored else live_bonus_by_player_id.get(player.id, 0)
+        if use_locked_bonus:
+            bonus = stored.bonus if stored else live_bonus_by_player_id.get(player.id, 0)
+        else:
+            bonus = live_bonus_by_player_id.get(player.id, 0)
         finale_score = stored.score if stored else None
-        total = (finale_score if finale_score is not None else 0) + locked_bonus
+        total = (finale_score if finale_score is not None else 0) + bonus
         finale_rows.append({
             "player_id": player.id,
             "name": player.name,
             "oom_rank": rank_by_player_id.get(player.id, "-"),
-            "bonus": locked_bonus,
+            "bonus": bonus,
             "finale_score": finale_score,
             "total": total
         })
@@ -95,25 +121,6 @@ def build_finale_rows(players):
         row["place"] = place
 
     return finale_rows
-
-
-def backfill_finale_bonus_if_needed(players):
-    """Populate locked bonus for legacy finale rows that still have 0/None."""
-    bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
-    existing_rows = FinaleScore.query.all()
-    if not existing_rows:
-        return
-
-    updated = False
-    for row in existing_rows:
-        expected_bonus = bonus_by_player_id.get(row.player_id, 0)
-        # Legacy fix: rows created before bonus-lock feature can have 0/None for everyone.
-        if expected_bonus > 0 and (row.bonus is None or row.bonus == 0):
-            row.bonus = expected_bonus
-            updated = True
-
-    if updated:
-        db.session.commit()
 
 
 def ensure_finale_bonus_column():
@@ -440,33 +447,32 @@ def reset_finale_scores():
 def finale():
     """Register finale scores and calculate total with OOM bonus."""
     players = Player.get_all()
-    bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
-    backfill_finale_bonus_if_needed(players)
 
     if request.method == "POST":
-        # Freeze bonus snapshot at first finale save by creating missing rows.
-        for player in players:
-            existing = FinaleScore.query.filter_by(player_id=player.id).first()
-            if not existing:
-                db.session.add(FinaleScore(
-                    player_id=player.id,
-                    bonus=bonus_by_player_id.get(player.id, 0),
-                    score=None
-                ))
-
+        scores_to_save = []
         for player in players:
             score_input = request.form.get(f"finale_score_{player.id}", "").strip()
             if score_input == "":
                 continue
-
-            finale_score = FinaleScore.query.filter_by(player_id=player.id).first()
             try:
-                value = int(score_input)
+                scores_to_save.append((player, int(score_input)))
             except ValueError:
                 continue
 
+        if scores_to_save and not finale_has_started():
+            sync_locked_finale_bonus(players)
+
+        for player, value in scores_to_save:
+            finale_score = FinaleScore.query.filter_by(player_id=player.id).first()
             if finale_score:
                 finale_score.score = value
+            else:
+                bonus_by_player_id, _ = get_oom_bonus_by_player_id(players)
+                db.session.add(FinaleScore(
+                    player_id=player.id,
+                    bonus=bonus_by_player_id.get(player.id, 0),
+                    score=value
+                ))
 
         db.session.commit()
         return redirect(url_for("finale"))
