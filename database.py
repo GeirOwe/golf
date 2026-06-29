@@ -60,7 +60,8 @@ class Round(db.Model):
         return cls.query.get(round_id)
 
     def delete(self):
-        """Delete round from database."""
+        """Delete round and its scores from database."""
+        RoundScore.query.filter_by(round_id=self.id).delete()
         db.session.delete(self)
         db.session.commit()
     
