@@ -40,8 +40,8 @@
                         <th>Par</th>
                         <th>CR</th>
                         <th>Slope</th>
-                        <th>Mottatt slag (HCP 18)</th>
-                        <th>Mottatt slag (HCP 24)</th>
+                        <th>Mottatt slag (HCP 10)</th>
+                        <th>Mottatt slag (HCP 20)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -67,8 +67,8 @@
                         <td>
                             <input type="number" name="tee_slope" value="{{ tee.slope_rating }}" min="55" max="155" class="score-input" required>
                         </td>
-                        <td>{{ course_handicap(18, tee.slope_rating, tee.course_rating, tee.par) }}</td>
-                        <td>{{ course_handicap(24, tee.slope_rating, tee.course_rating, tee.par) }}</td>
+                        <td>{{ course_handicap(10, tee.slope_rating, tee.course_rating, tee.par) }}</td>
+                        <td>{{ course_handicap(20, tee.slope_rating, tee.course_rating, tee.par) }}</td>
                     </tr>
                     {% endfor %}
                     {% set blank_rows = 4 if not course.tees else 2 %}
