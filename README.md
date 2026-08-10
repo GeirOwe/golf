@@ -56,6 +56,9 @@ flask run
 3. Set your environment variables (`DATABASE_URL`, `OPENAI_API_KEY` or `XAI_API_KEY`) in the Render dashboard under the **Environment** tab.
 4. Render will auto-install dependencies from `requirements.txt` and run your app.
 
+## Database
+- databasen er flyttet til Neon
+
 ---
 
 ## AI Integration
