@@ -366,6 +366,8 @@ def manage_scores(round_id):
         return redirect(url_for("list_rounds"))
     
     players = Player.get_all()
+    # Ensure Norwegian weekday formatting consistent with rounds list
+    round.display_date = format_date_norwegian(round.play_date)
     
     if request.method == "POST":
         # Update scores
