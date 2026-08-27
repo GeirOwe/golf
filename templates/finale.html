@@ -65,11 +65,6 @@
     </form>
 
     <div class="action-buttons">
-        <form method="POST"
-              action="{{ url_for('reset_finale_scores') }}"
-              style="display: inline;"
-              onsubmit="return confirm('Er du sikker på at du vil slette alle finalescorer og bonus? OOM-scorer påvirkes ikke.');">
-            <button type="submit" class="btn-danger">Nullstill finale</button>
-        </form>
+        <a href="{{ url_for('confirm_reset_finale_scores') }}" class="btn-danger">Nullstill finale</a>
     </div>
 {% endblock %}

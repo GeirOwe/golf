@@ -445,6 +445,11 @@ def reset_finale_scores():
         return redirect(url_for("finale", error=f"Kunne ikke slette finalescorer: {str(e)}"))
 
 
+@app.route("/finale/reset/confirm", methods=["GET"])
+def confirm_reset_finale_scores():
+    """Show a server-side confirmation page before destructive finale reset."""
+    return render_template("confirm_reset_finale.html")
+
 @app.route("/finale", methods=["GET", "POST"])
 def finale():
     """Register finale scores and calculate total with OOM bonus."""

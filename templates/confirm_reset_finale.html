@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Bekreft nullstilling{% endblock %}
+
+{% block content %}
+  <h1>Bekreft nullstilling av finale</h1>
+  <p>
+    Dette vil slette alle registrerte finalescorer og lagret bonus. OOM-resultater påvirkes ikke.
+  </p>
+  <div class="action-buttons">
+    <form method="POST" action="{{ url_for('reset_finale_scores') }}" style="display:inline;"
+          onsubmit="return confirm('Er du helt sikker? Dette kan ikke angres.');">
+      <button type="submit" class="btn-danger">Ja, slett finalen</button>
+    </form>
+    <a href="{{ url_for('finale') }}" class="button">Avbryt</a>
+  </div>
+{% endblock %}
+
