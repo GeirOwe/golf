@@ -4,7 +4,7 @@
 
 {% block content %}
     <h1>Registrer Score</h1>
-    <h2>{{ round.play_date.strftime('%A %d.%m').capitalize() }} - {{ round.course_name }}</h2>
+    <h2>{{ round.display_date }} - {{ round.course_name }}</h2>
     
     <form method="POST">
         <table class="player-table">

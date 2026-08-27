@@ -366,6 +366,8 @@ def manage_scores(round_id):
         return redirect(url_for("list_rounds"))
     
     players = Player.get_all()
+    # Ensure Norwegian weekday formatting consistent with rounds list
+    round.display_date = format_date_norwegian(round.play_date)
     
     if request.method == "POST":
         # Update scores
@@ -442,6 +444,11 @@ def reset_finale_scores():
     except Exception as e:
         return redirect(url_for("finale", error=f"Kunne ikke slette finalescorer: {str(e)}"))
 
+
+@app.route("/finale/reset/confirm", methods=["GET"])
+def confirm_reset_finale_scores():
+    """Show a server-side confirmation page before destructive finale reset."""
+    return render_template("confirm_reset_finale.html")
 
 @app.route("/finale", methods=["GET", "POST"])
 def finale():
