@@ -14,7 +14,6 @@ from flask import Flask, render_template, request, redirect, url_for
 from database import db, Player, Round, RoundScore, FinaleScore, GolfCourse, CourseTee
 from models import HandicapError, course_handicap
 from dotenv import load_dotenv
-from openai import OpenAI
 
 # Set Norwegian locale for date formatting
 try:
@@ -205,6 +204,43 @@ def _apply_tee_rows(course, rows):
                 slope_rating=row["slope_rating"],
             ))
 
+
+def _database_url():
+    """Normalize DATABASE_URL for SQLAlchemy (Render still uses postgres://)."""
+    url = os.environ.get("DATABASE_URL") or ""
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
+
+
+def _engine_options(database_url):
+    """Engine options that survive Neon/Render idle disconnects."""
+    connect_args = {"connect_timeout": 10}
+    is_remote = database_url and not any(
+        host in database_url for host in ("localhost", "127.0.0.1")
+    )
+    if is_remote:
+        connect_args.update({
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        })
+
+    options = {
+        "pool_pre_ping": True,
+        "connect_args": connect_args,
+    }
+    if "-pooler" in database_url:
+        from sqlalchemy.pool import NullPool
+        options["poolclass"] = NullPool
+    else:
+        options["pool_recycle"] = 280
+        options["pool_size"] = 5
+        options["max_overflow"] = 2
+    return options
+
+
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
@@ -214,8 +250,10 @@ def create_app():
         load_dotenv()
     
     # Database Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+    database_url = _database_url()
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url or None
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = _engine_options(database_url)
     db.init_app(app)
     
     return app
@@ -223,24 +261,49 @@ def create_app():
 # Initialize application
 app = create_app()
 
-# Ensure database tables exist
-with app.app_context():
+
+def _init_schema():
+    """Create tables and apply lightweight column migrations."""
     db.create_all()
     ensure_finale_bonus_column()
     ensure_course_tee_gender_column()
+
+
+@app.before_request
+def ensure_schema():
+    """Initialize schema on first request so worker boot is not blocked by the DB."""
+    if getattr(app, "_schema_ready", False) or request.path == "/health":
+        return
+    try:
+        _init_schema()
+        app._schema_ready = True
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Schema init failed")
+
+
+@app.route("/health")
+def health():
+    """Liveness check used by Render; must not depend on the database."""
+    return {"status": "ok"}, 200
+
 
 # Basic Routes
 @app.route("/")
 def home():
     """Display home page with countdown to first tee time."""
-    first_round = Round.query.order_by(Round.play_date.asc()).first()
     days_until = None
-    if first_round:
-        today = date.today()
-        tournament_date = first_round.play_date.date()
-        if tournament_date > today:
-            days_until = (tournament_date - today).days
-    
+    try:
+        first_round = Round.query.order_by(Round.play_date.asc()).first()
+        if first_round:
+            today = date.today()
+            tournament_date = first_round.play_date.date()
+            if tournament_date > today:
+                days_until = (tournament_date - today).days
+    except SQLAlchemyError:
+        db.session.rollback()
+        app.logger.exception("Database error on home page")
+
     return render_template("home.html", days_until=days_until)
 
 # Player Management Routes
@@ -642,6 +705,8 @@ def show_local_rules():
 @app.route("/ai-story")
 def unicorn_story():
     """Generate and display an AI story."""
+    from openai import OpenAI
+
     story = None
     error = None
     try:
