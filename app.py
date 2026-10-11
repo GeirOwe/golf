@@ -497,6 +497,18 @@ def reset_scores():
         return redirect(url_for("list_scores", error=f"Kunne ikke slette scorer: {str(e)}"))
 
 
+@app.route("/rounds/reset", methods=["POST"])
+def reset_rounds():
+    """Delete all rounds (tee times) and their scores."""
+    try:
+        RoundScore.query.delete()
+        Round.query.delete()
+        db.session.commit()
+        return redirect(url_for("admin_panel", message="Alle runder (tee times) er slettet"))
+    except Exception as e:
+        return redirect(url_for("admin_panel", error=f"Kunne ikke slette runder: {str(e)}"))
+
+
 @app.route("/finale/reset", methods=["POST"])
 def reset_finale_scores():
     """Delete all finale scores and locked bonus for a new tournament."""
@@ -564,6 +576,19 @@ def finale_resultat():
     finale_rows = build_finale_rows(players)
     ranked_rows = [row for row in finale_rows if row["finale_score"] is not None]
     return render_template("finale_resultat.html", finale_rows=ranked_rows)
+
+@app.route("/admin", methods=["GET"])
+def admin_panel():
+    """Simple admin page (not linked in menu) for destructive maintenance actions."""
+    players = Player.get_all()
+    rounds = Round.get_all()
+    return render_template(
+        "admin.html",
+        players=players,
+        rounds=rounds,
+        message=request.args.get("message"),
+        error=request.args.get("error"),
+    )
 
 @app.route("/admin/db/reset", methods=["POST"])
 def reset_database():
