@@ -1,0 +1,16 @@
+url: http://127.0.0.1:49973/players
+title: Spillerliste - Lisboa Høst 🥳
+heading: Spillere
+
+- role: link
+  name: Endre
+- role: link
+  name: Ny Spiller
+- role: link
+  name: Hjem
+
+The snapshot does not include table cells. document.body.innerText was:
+Spillere
+Navn	Handicap	Handlinger
+Verify Ada	18.2	Endre
+Ny Spiller Hjem

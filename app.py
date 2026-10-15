@@ -215,6 +215,11 @@ def _database_url():
 
 def _engine_options(database_url):
     """Engine options that survive Neon/Render idle disconnects."""
+    if (database_url or "").startswith("sqlite"):
+        # SQLite is the disposable database for local verification.
+        # libpq connect args and QueuePool sizing apply only to PostgreSQL.
+        return {}
+
     connect_args = {"connect_timeout": 10}
     is_remote = database_url and not any(
         host in database_url for host in ("localhost", "127.0.0.1")

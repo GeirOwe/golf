@@ -1,0 +1,2 @@
+name	handicap
+Verify Ada	18.2

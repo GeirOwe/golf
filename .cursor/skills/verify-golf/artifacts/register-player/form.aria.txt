@@ -1,0 +1,14 @@
+url: http://127.0.0.1:49973/register
+title: Registrer Spiller - Lisboa Høst 🥳
+heading: Registrer Ny Spiller
+
+- role: textbox
+  name: "Spillernavn:"
+  value: Verify Ada
+- role: spinbutton
+  name: "Handicap:"
+  value: 12.4
+- role: button
+  name: Lagre
+- role: link
+  name: Hjem

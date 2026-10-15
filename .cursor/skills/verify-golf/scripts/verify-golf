@@ -1,0 +1,498 @@
+#!/usr/bin/env python3
+"""Launch, check, and tear down an isolated Golf verification instance.
+
+The instance is a local Flask process and a new SQLite file under
+.cursor/skills/verify-golf/runs/<run-id>/. It never reads .env and never
+opens a Postgres URL.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import signal
+import socket
+import sqlite3
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+SKILL_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = SKILL_DIR.parents[2]
+RUNS_DIR = SKILL_DIR / "runs"
+ARTIFACTS_DIR = SKILL_DIR / "artifacts"
+CURRENT_PATH = RUNS_DIR / "current.json"
+VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
+REQUIRED_TABLES = {
+    "players",
+    "rounds",
+    "round_scores",
+    "finale_scores",
+    "golf_courses",
+    "course_tees",
+}
+
+
+class VerifyError(SystemExit):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+def fail(message: str) -> None:
+    print(f"ok=0\nreason={message}")
+    raise VerifyError(message)
+
+
+def run_id_ok(run_id: str) -> bool:
+    if not run_id or run_id in {".", ".."}:
+        return False
+    return "/" not in run_id and "\\" not in run_id and ".." not in run_id
+
+
+def run_dir_for(run_id: str) -> Path:
+    if not run_id_ok(run_id):
+        fail(f"invalid run id {run_id!r}")
+    runs_root = RUNS_DIR.resolve()
+    run_dir = (RUNS_DIR / run_id).resolve()
+    if run_dir.parent != runs_root:
+        fail(f"refusing path outside {runs_root}")
+    return run_dir
+
+
+def read_json(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        fail(f"cannot read {path}: {exc}")
+        return {}
+
+
+def resolve_run_id(explicit: str | None) -> str:
+    if explicit:
+        return explicit
+    if not CURRENT_PATH.exists():
+        fail("no current verification run; pass --run-id or launch one")
+    payload = read_json(CURRENT_PATH)
+    run_id = payload.get("run_id") or ""
+    if not run_id:
+        fail("current.json has no run_id")
+    return run_id
+
+
+def meta_path(run_id: str) -> Path:
+    return run_dir_for(run_id) / "meta.json"
+
+
+def load_meta(run_id: str) -> dict:
+    path = meta_path(run_id)
+    if not path.is_file():
+        fail(f"no meta.json for run {run_id}")
+    meta = read_json(path)
+    assert_isolated_meta(meta)
+    return meta
+
+
+def assert_isolated_meta(meta: dict) -> None:
+    url = meta.get("database_url") or ""
+    database_path = Path(meta.get("database_path") or "")
+    data_dir = Path(meta.get("data_dir") or "")
+    base_url = meta.get("url") or ""
+    if not url.startswith("sqlite:///"):
+        fail("database_url is not sqlite")
+    lowered = url.lower()
+    if "neon.tech" in lowered or lowered.startswith("postgres"):
+        fail("refusing a Postgres or Neon database URL")
+    if not base_url.startswith("http://127.0.0.1:"):
+        fail(f"refusing non-local url {base_url}")
+    run_dir = run_dir_for(meta.get("run_id") or "")
+    try:
+        database_path.resolve().relative_to(run_dir)
+        data_dir.resolve().relative_to(run_dir)
+    except ValueError:
+        fail("database path is outside the scratch run directory")
+
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def process_command(pid: int) -> str:
+    try:
+        return subprocess.check_output(
+            ["ps", "-p", str(pid), "-o", "command="],
+            text=True,
+        ).strip()
+    except subprocess.CalledProcessError:
+        return ""
+
+
+def pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def command_matches(pid: int, port: int) -> bool:
+    command = process_command(pid)
+    return (
+        "flask" in command
+        and f"--port {port}" in command
+        and "--no-reload" in command
+        and "app" in command
+    )
+
+
+def http_get(url: str, timeout: float = 3) -> tuple[int, str]:
+    request = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.status, response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", "replace")
+        return exc.code, body
+
+
+def wait_until_usable(base_url: str, database_path: Path, timeout: float = 30) -> None:
+    deadline = time.time() + timeout
+    last = "no response"
+    while time.time() < deadline:
+        try:
+            status, body = http_get(base_url + "/health")
+            if status != 200 or '"ok"' not in body:
+                last = f"health {status} {body[:120]}"
+                time.sleep(0.25)
+                continue
+            status, body = http_get(base_url + "/players", timeout=5)
+            if status == 200 and "Spillere" in body and database_path.is_file():
+                return
+            last = f"players {status} db_exists={database_path.is_file()}"
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last = str(exc)
+        time.sleep(0.25)
+    fail(f"instance did not become usable: {last}")
+
+
+def sqlite_tables(database_path: Path) -> set[str]:
+    uri = f"file:{database_path}?mode=ro"
+    try:
+        connection = sqlite3.connect(uri, uri=True)
+    except sqlite3.Error as exc:
+        fail(f"cannot open sqlite read-only: {exc}")
+    try:
+        rows = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ).fetchall()
+    finally:
+        connection.close()
+    return {row[0] for row in rows}
+
+
+def listener_pids(port: int) -> list[int]:
+    try:
+        output = subprocess.check_output(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+    pids = []
+    for line in output.splitlines():
+        line = line.strip()
+        if line.isdigit():
+            pids.append(int(line))
+    return pids
+
+
+def process_has_database(pid: int, database_path: Path) -> bool:
+    try:
+        output = subprocess.check_output(
+            ["lsof", "-nP", "-p", str(pid)],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+    return str(database_path) in output
+
+
+def process_env_is_safe(pid: int, database_path: Path) -> None:
+    try:
+        output = subprocess.check_output(
+            ["ps", "eww", "-p", str(pid)],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return
+    lowered = output.lower()
+    if "neon.tech" in lowered or "postgresql://" in lowered or "postgres://" in lowered:
+        fail("verification process environment contains a Postgres or Neon URL")
+    if "DATABASE_URL=" in output and str(database_path) not in output:
+        fail("verification process DATABASE_URL does not point at the scratch sqlite file")
+
+
+def child_environment(database_url: str) -> dict[str, str]:
+    if not database_url.startswith("sqlite:///"):
+        fail("refusing to start without a sqlite DATABASE_URL")
+    if "neon.tech" in database_url.lower():
+        fail("refusing Neon URL")
+    env = os.environ.copy()
+    env["DATABASE_URL"] = database_url
+    env["FLASK_APP"] = "app"
+    env["FLASK_ENV"] = "production"
+    env["FLASK_DEBUG"] = "0"
+    # Flask and python-dotenv must not import .env. That file holds the live Neon URL.
+    env["FLASK_SKIP_DOTENV"] = "1"
+    env.pop("XAI_API_KEY", None)
+    env.pop("OPENAI_API_KEY", None)
+    return env
+
+
+def write_meta(path: Path, meta: dict) -> None:
+    path.write_text(json.dumps(meta, indent=2) + "\n")
+
+
+def launch(args: argparse.Namespace) -> None:
+    if not VENV_PYTHON.is_file():
+        fail(f"missing {VENV_PYTHON}; create the repo venv and install requirements first")
+    RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d%H%M%S")
+    run_id = args.run_id or f"{stamp}-{os.getpid()}"
+    run_dir = run_dir_for(run_id)
+    if run_dir.exists():
+        fail(f"run directory already exists: {run_dir}")
+    run_dir.mkdir(parents=False)
+    database_path = run_dir / "golf.db"
+    log_path = run_dir / "server.log"
+    database_url = "sqlite:///" + database_path.resolve().as_posix()
+    port = free_port()
+    base_url = f"http://127.0.0.1:{port}"
+    env = child_environment(database_url)
+    log_file = log_path.open("w")
+    try:
+        process = subprocess.Popen(
+            [
+                str(VENV_PYTHON),
+                "-m",
+                "flask",
+                "--app",
+                "app",
+                "run",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
+                "--no-reload",
+                "--no-debugger",
+            ],
+            cwd=REPO_ROOT,
+            env=env,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    finally:
+        log_file.close()
+    meta = {
+        "run_id": run_id,
+        "pid": process.pid,
+        "port": port,
+        "url": base_url,
+        "data_dir": str(run_dir),
+        "database_path": str(database_path),
+        "database_url": database_url,
+        "log": str(log_path),
+        "repo_root": str(REPO_ROOT),
+    }
+    write_meta(run_dir / "meta.json", meta)
+    CURRENT_PATH.write_text(json.dumps({"run_id": run_id}) + "\n")
+    try:
+        wait_until_usable(base_url, database_path)
+        tables = sqlite_tables(database_path)
+        missing = REQUIRED_TABLES - tables
+        if missing:
+            fail(f"schema missing tables: {', '.join(sorted(missing))}")
+        if not command_matches(process.pid, port):
+            fail("started process command does not match the verification flask command")
+    except VerifyError:
+        stop_process(process.pid, port)
+        raise
+    print(f"ok=1")
+    print(f"ready=1")
+    print(f"run_id={run_id}")
+    print(f"url={base_url}")
+    print(f"pid={process.pid}")
+    print(f"data_dir={run_dir}")
+    print(f"database_path={database_path}")
+    print("isolated=sqlite")
+
+
+def doctor(args: argparse.Namespace) -> None:
+    run_id = resolve_run_id(args.run_id)
+    meta = load_meta(run_id)
+    pid = int(meta["pid"])
+    port = int(meta["port"])
+    base_url = meta["url"]
+    database_path = Path(meta["database_path"])
+    if not pid_alive(pid):
+        fail(f"pid {pid} is not running")
+    if not command_matches(pid, port):
+        fail("pid is not the verification flask process")
+    listeners = listener_pids(port)
+    if listeners and pid not in listeners:
+        fail(f"port {port} is owned by {listeners}, not pid {pid}")
+    if not listeners:
+        fail(f"nothing is listening on {port}")
+    process_env_is_safe(pid, database_path)
+    if not process_has_database(pid, database_path):
+        fail("process has not opened the scratch sqlite file")
+    status, body = http_get(base_url + "/health")
+    if status != 200 or '"ok"' not in body:
+        fail(f"/health returned {status}")
+    status, body = http_get(base_url + "/")
+    if status != 200 or "Lisboa Høst" not in body:
+        fail("home page is not the Golf app")
+    status, body = http_get(base_url + "/players")
+    if status != 200 or "Spillere" not in body:
+        fail("player list is not usable")
+    if not database_path.is_file():
+        fail("scratch sqlite file does not exist")
+    missing = REQUIRED_TABLES - sqlite_tables(database_path)
+    if missing:
+        fail(f"schema missing tables: {', '.join(sorted(missing))}")
+    print("ok=1")
+    print(f"run_id={run_id}")
+    print(f"url={base_url}")
+    print(f"pid={pid}")
+    print(f"database_path={database_path}")
+    print("isolated=sqlite")
+    print("tables=" + ",".join(sorted(REQUIRED_TABLES)))
+
+
+def stop_process(pid: int, port: int) -> None:
+    if not pid_alive(pid):
+        return
+    if not command_matches(pid, port):
+        fail(f"refusing to kill pid {pid}; it is not the verification flask process")
+    os.kill(pid, signal.SIGTERM)
+    deadline = time.time() + 5
+    while time.time() < deadline and pid_alive(pid):
+        time.sleep(0.1)
+    if pid_alive(pid):
+        if not command_matches(pid, port):
+            fail(f"refusing to kill pid {pid} after it no longer matches")
+        os.kill(pid, signal.SIGKILL)
+        time.sleep(0.2)
+    if pid_alive(pid):
+        fail(f"pid {pid} is still running")
+
+
+def cleanup(args: argparse.Namespace) -> None:
+    run_id = resolve_run_id(args.run_id)
+    run_dir = run_dir_for(run_id)
+    meta_file = run_dir / "meta.json"
+    if meta_file.is_file():
+        meta = load_meta(run_id)
+        stop_process(int(meta["pid"]), int(meta["port"]))
+    if run_dir.exists():
+        # Remove only this run's scratch directory. Evidence lives in artifacts/.
+        children = list(run_dir.rglob("*"))
+        for child in children:
+            if child.is_symlink():
+                fail(f"refusing to delete symlink {child}")
+            try:
+                child.resolve().relative_to(run_dir)
+            except ValueError:
+                fail(f"refusing to delete {child}")
+        for child in sorted(children, reverse=True):
+            if child.is_file():
+                child.unlink()
+            elif child.is_dir():
+                child.rmdir()
+        run_dir.rmdir()
+    if CURRENT_PATH.is_file():
+        current = read_json(CURRENT_PATH)
+        if current.get("run_id") == run_id:
+            CURRENT_PATH.unlink()
+    print("ok=1")
+    print(f"cleaned_run={run_id}")
+    print(f"run_dir_exists={run_dir.exists()}")
+    print(f"artifacts_dir={ARTIFACTS_DIR}")
+    print(f"artifacts_exist={ARTIFACTS_DIR.exists()}")
+
+
+def show_url(args: argparse.Namespace) -> None:
+    meta = load_meta(resolve_run_id(args.run_id))
+    print(meta["url"])
+
+
+def sql(args: argparse.Namespace) -> None:
+    meta = load_meta(resolve_run_id(args.run_id))
+    statement = " ".join(args.statement).strip()
+    body = statement.rstrip(";").strip()
+    lowered = body.lower()
+    if not (lowered.startswith("select") or lowered.startswith("pragma")):
+        fail("only a single read-only SELECT or PRAGMA is allowed")
+    if ";" in body:
+        fail("only one statement is allowed")
+    database_path = Path(meta["database_path"])
+    connection = sqlite3.connect(f"file:{database_path}?mode=ro", uri=True)
+    try:
+        cursor = connection.execute(body)
+        rows = cursor.fetchall()
+        columns = [item[0] for item in cursor.description or []]
+    finally:
+        connection.close()
+    if columns:
+        print("\t".join(columns))
+    for row in rows:
+        print("\t".join("" if value is None else str(value) for value in row))
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Isolated Golf verification helper")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    launch_parser = sub.add_parser("launch", help="start a new local sqlite instance")
+    launch_parser.add_argument("--run-id")
+    launch_parser.set_defaults(func=launch)
+
+    for name, func, help_text in (
+        ("doctor", doctor, "check the instance is the scratch sqlite app"),
+        ("cleanup", cleanup, "stop that instance and delete only its run directory"),
+        ("url", show_url, "print the instance base URL"),
+    ):
+        item = sub.add_parser(name, help=help_text)
+        item.add_argument("--run-id")
+        item.set_defaults(func=func)
+
+    sql_parser = sub.add_parser("sql", help="run one read-only query against the scratch sqlite file")
+    sql_parser.add_argument("--run-id")
+    sql_parser.add_argument("statement", nargs="+")
+    sql_parser.set_defaults(func=sql)
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+    try:
+        args.func(args)
+    except VerifyError as exc:
+        if str(exc):
+            print(str(exc), file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

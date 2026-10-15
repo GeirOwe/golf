@@ -1,0 +1,6 @@
+feature: register-player
+entry: HCP oversikt -> Ny Spiller -> Lagre -> HCP oversikt -> Endre
+run_id: 20261015181502-35722
+url: http://127.0.0.1:49973
+database: scratch sqlite created by verify-golf launch
+result: player list and sqlite row show Verify Ada with handicap 18.2
