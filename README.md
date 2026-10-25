@@ -53,7 +53,7 @@ Tabellene opprettes ved første vanlige sideforespørsel. `/health` gjør det ik
 
 ## Produksjon
 
-`render.yaml` beskriver webtjenesten. I produksjon peker `DATABASE_URL` mot Neon (ikke Render Postgres). `render.yaml` lister fortsatt den ubrukte gratisdatabasen `golf_db_jn45`; den kan ryddes bort senere. Render installerer `requirements.txt` og starter:
+`render.yaml` beskriver webtjenesten. `DATABASE_URL` settes i Render-dashboardet og er merket `sync: false`, så en blueprint-synk ikke bytter fra Neon til en Render-database. Render installerer `requirements.txt` og starter:
 
 ```bash
 gunicorn -c gunicorn.conf.py app:app
