@@ -32,12 +32,12 @@ pip install -r requirements.txt
 Lag en `.env` i rotmappa. Filen er gitignorert.
 
 ```env
-DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+DATABASE_URL=postgresql://user:password@host/neondb?sslmode=require
 FLASK_ENV=development
 XAI_API_KEY=your_xai_api_key_here
 ```
 
-For en lokal, tom database kan du bruke SQLite:
+Produksjonsdatabasen ligger på Neon. For en lokal, tom database kan du bruke SQLite:
 
 ```env
 DATABASE_URL=sqlite:///golf.db
@@ -53,13 +53,13 @@ Tabellene opprettes ved første vanlige sideforespørsel. `/health` gjør det ik
 
 ## Produksjon
 
-`render.yaml` beskriver webtjenesten og Render Postgres (`golf_db_jn45`). Overstyr `DATABASE_URL` i Render-dashboardet hvis du bruker en annen vert. Render installerer `requirements.txt` og starter:
+`render.yaml` beskriver webtjenesten. I produksjon peker `DATABASE_URL` mot Neon (ikke Render Postgres). `render.yaml` lister fortsatt den ubrukte gratisdatabasen `golf_db_jn45`; den kan ryddes bort senere. Render installerer `requirements.txt` og starter:
 
 ```bash
 gunicorn -c gunicorn.conf.py app:app
 ```
 
-Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. URL med `-pooler` bruker `NullPool`; ellers en liten connection pool med `pool_pre_ping`.
+Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. Mot Neon brukes pooler-tilkoblingen (`-pooler`) med `NullPool`; ellers en liten connection pool med `pool_pre_ping`.
 
 ## Database
 
