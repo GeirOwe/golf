@@ -12,11 +12,11 @@ Kjører på [Render](https://golf-app-w497.onrender.com).
 - Tabell OOM. Summerer scorer over 0, regner snitt av de samme scorene, og sorterer på total.
 - Finale. OOM-plass 1–4 gir bonus 4, 3, 2 og 1. Bonusen følger live OOM til første finalescore lagres, og låses deretter. Total er finalescore pluss bonus.
 - Baner med anlegg og tee (Herre eller Dame, par, course rating, slope).
-- Mottatte slag etter WHS: handicapindeks × (slope / 113) + (course rating − par).
+- Mottatte slag etter WHS (se `models.course_handicap`).
 - Spilleoppsett, lokale regler og nedtelling til første tee time.
 - Værmelding fra yr.no på forsiden.
-- Kort golftips på `/ai-story` via xAI. Krever `XAI_API_KEY`.
-- Admin på `/admin`. Siden ligger ikke i menyen. Derfra kan scorer, runder og spillere slettes.
+- Kort golftips på `/ai-story` via xAI.
+- Admin på `/admin` (ikke i menyen): slett scorer, runder og spillere.
 - `/health` svarer `{"status":"ok"}` uten å bruke databasen.
 
 ## Kom i gang
@@ -32,12 +32,12 @@ pip install -r requirements.txt
 Lag en `.env` i rotmappa. Filen er gitignorert.
 
 ```env
-DATABASE_URL=postgresql://user:password@host/neondb?sslmode=require
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 FLASK_ENV=development
 XAI_API_KEY=your_xai_api_key_here
 ```
 
-Produksjonsdatabasen ligger på Neon. For en lokal, tom database kan du bruke SQLite i stedet:
+For en lokal, tom database kan du bruke SQLite:
 
 ```env
 DATABASE_URL=sqlite:///golf.db
@@ -53,24 +53,17 @@ Tabellene opprettes ved første vanlige sideforespørsel. `/health` gjør det ik
 
 ## Produksjon
 
-`render.yaml` beskriver webtjenesten. Render installerer `requirements.txt` og starter:
+`render.yaml` beskriver webtjenesten og Render Postgres (`golf_db_jn45`). Overstyr `DATABASE_URL` i Render-dashboardet hvis du bruker en annen vert. Render installerer `requirements.txt` og starter:
 
 ```bash
 gunicorn -c gunicorn.conf.py app:app
 ```
 
-Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. Mot Neon brukes pooler-tilkoblingen med `NullPool`, og mot en vanlig Postgres-tilkobling brukes en liten connection pool med `pool_pre_ping`.
+Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. URL med `-pooler` bruker `NullPool`; ellers en liten connection pool med `pool_pre_ping`.
 
 ## Database
 
-| Tabell | Innhold |
-| --- | --- |
-| `players` | Navn og handicap |
-| `rounds` | Bane, dato, tee time, henting |
-| `round_scores` | Score per spiller per runde |
-| `finale_scores` | Én finalescore og låst OOM-bonus per spiller |
-| `golf_courses` | Banenavn og anlegg |
-| `course_tees` | Tee, kjønn, par, course rating, slope |
+Modellene ligger i `database.py`: `players`, `rounds`, `round_scores`, `finale_scores`, `golf_courses`, `course_tees`.
 
 ## Prosjektstruktur
 
@@ -78,57 +71,24 @@ Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adre
 golf/
 ├── app.py              # Flask-app og ruter
 ├── database.py         # SQLAlchemy-modeller
-├── models.py           # Handicap-validering og mottatte slag
-├── gunicorn.conf.py    # Gunicorn for Render
-├── render.yaml         # Render-tjeneste
+├── models.py           # HandicapError og WHS mottatte slag
+├── gunicorn.conf.py
+├── render.yaml
 ├── requirements.txt
-├── .env                # Miljøvariabler, ikke committet
-└── templates/
-    ├── base.html
-    ├── home.html
-    ├── list_players.html
-    ├── register_player.html
-    ├── update_player.html
-    ├── list_rounds.html
-    ├── add_round.html
-    ├── update_round.html
-    ├── manage_scores.html
-    ├── list_scores.html
-    ├── finale.html
-    ├── finale_resultat.html
-    ├── confirm_reset_finale.html
-    ├── list_golf_courses.html
-    ├── add_golf_course.html
-    ├── view_golf_course.html
-    ├── mottatte_slag.html
-    ├── flight_setup.html
-    ├── local_rules.html
-    ├── admin.html
-    ├── unicorn_story.html
-    └── 404.html
+├── static/
+├── templates/
+└── .env                # ikke committet
 ```
 
-## Hovedruter
+## Utvalgte ruter
 
-| Sti | Side |
+Meny og øvrige sider er definert i `app.py`. Spesielt:
+
+| Sti | Merknad |
 | --- | --- |
-| `/` | Hjem |
-| `/players` | HCP-oversikt |
-| `/register` | Ny spiller |
-| `/rounds` | Tee times |
-| `/round/new` | Ny runde |
-| `/round/<id>/scores` | Registrer score |
-| `/scores` | Tabell OOM |
-| `/finale` | Finale |
-| `/finale/resultat` | Finaleresultat |
-| `/baner` | Baner |
-| `/baner/ny` | Ny bane |
-| `/baner/mottatte-slag` | Mottatte slag |
-| `/flights` | Spilleoppsett |
-| `/local-rules` | Lokale regler |
-| `/admin` | Admin |
-| `/ai-story` | AI-tips |
-| `/health` | Helsesjekk |
+| `/admin` | Ikke i menyen |
+| `/ai-story` | Krever `XAI_API_KEY` |
+| `/health` | Ingen database |
 
 ## Credits
 
