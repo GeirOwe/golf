@@ -18,6 +18,9 @@ def test_home_renders_holding_page_without_tables():
     body = response.get_data(as_text=True)
     assert "Fore. Out of bounds." in body
     assert "En omskriving pågår." in body
+    assert "<title>Fore</title>" in body
+    assert '<a class="brand" href="/">Fore</a>' in body
+    assert "Lisboa Høst" not in body
     if _DB_PATH.stat().st_size == 0:
         return
     connection = sqlite3.connect(f"file:{_DB_PATH}?mode=ro", uri=True)

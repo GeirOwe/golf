@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Start{% endblock %}
+
+{% block content %}
+<section class="section section--narrow">
+  <div class="section__head">
+    <p class="eyebrow">Organisator</p>
+    <h1>Start</h1>
+  </div>
+  {% if organizer %}
+  <form class="form" method="post" action="{{ url_for('create_group') }}">
+    <div class="field">
+      <label for="name">Gruppenavn</label>
+      <input class="input" id="name" name="name" autocomplete="off" required>
+      {% if error %}
+      <p class="field__error">{{ error }}</p>
+      {% endif %}
+    </div>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">Opprett gruppe</button>
+    </div>
+  </form>
+  {% if groups %}
+  <ul class="entity-list">
+    {% for group in groups %}
+    <li>
+      <a class="entity-row" href="{{ url_for('show_group', token=group.token) }}">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ group.name }}</span>
+        </span>
+        <span class="entity-row__chevron" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">Ingen grupper ennå.</p>
+  {% endif %}
+  {% else %}
+  <form class="form" method="post" action="{{ url_for('start') }}">
+    <div class="field">
+      <label for="secret">Kode</label>
+      <input class="input" id="secret" name="secret" type="password" autocomplete="current-password" required>
+      {% if rejected %}
+      <p class="field__error">Feil kode.</p>
+      {% endif %}
+    </div>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">Fortsett</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}
