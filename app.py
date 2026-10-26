@@ -7,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import CourseTee, GolfCourse, Group, Player, db
-from models import course_handicap
+from models import HandicapError, course_handicap
 
 
 def ensure_course_tee_gender_column():
@@ -210,12 +210,98 @@ def create_group():
     return redirect(url_for("show_group", token=group.token))
 
 
-@app.route("/g/<token>")
-def show_group(token):
+def _group_or_404(token):
     group = Group.query.filter_by(token=token).one_or_none()
     if group is None:
         abort(404)
+    return group
+
+
+def _player_or_404(group, player_id):
+    player = Player.query.filter_by(id=player_id, group_id=group.id).one_or_none()
+    if player is None:
+        abort(404)
+    return player
+
+
+def _posted_player():
+    name = (request.form.get("name") or "").strip()
+    raw = (request.form.get("handicap") or "").strip()
+    if not name:
+        return name, raw, None, "Skriv et navn."
+    try:
+        handicap = float(raw.replace(",", "."))
+    except ValueError:
+        return name, raw, None, "Skriv et handicap."
+    return name, raw, handicap, None
+
+
+@app.route("/g/<token>")
+def show_group(token):
+    group = _group_or_404(token)
     return render_template("group.html", group=group)
+
+
+@app.route("/g/<token>/players", methods=["GET", "POST"])
+def new_player(token):
+    group = _group_or_404(token)
+    error = None
+    name = ""
+    handicap_value = ""
+    if request.method == "POST":
+        name, handicap_value, handicap, error = _posted_player()
+        if error is None:
+            try:
+                player = Player(name=name, handicap=handicap, group_id=group.id)
+            except HandicapError as exc:
+                error = str(exc)
+            else:
+                db.session.add(player)
+                db.session.commit()
+                return redirect(url_for("show_group", token=group.token))
+    return render_template(
+        "players.html",
+        group=group,
+        error=error,
+        name=name,
+        handicap_value=handicap_value,
+    )
+
+
+@app.route("/g/<token>/players/<int:player_id>", methods=["GET", "POST"])
+def edit_player(token, player_id):
+    group = _group_or_404(token)
+    player = _player_or_404(group, player_id)
+    error = None
+    name = player.name
+    handicap_value = f"{player.handicap:.1f}"
+    if request.method == "POST":
+        name, handicap_value, handicap, error = _posted_player()
+        if error is None:
+            try:
+                player.change(name, handicap)
+            except HandicapError as exc:
+                error = str(exc)
+            else:
+                db.session.commit()
+                return redirect(url_for("show_group", token=group.token))
+    return render_template(
+        "player_form.html",
+        group=group,
+        player=player,
+        error=error,
+        name=name,
+        handicap_value=handicap_value,
+    )
+
+
+@app.route("/g/<token>/players/<int:player_id>/delete", methods=["POST"])
+def delete_player(token, player_id):
+    group = _group_or_404(token)
+    player = _player_or_404(group, player_id)
+    db.session.delete(player)
+    db.session.commit()
+    return redirect(url_for("show_group", token=group.token))
 
 
 @app.route("/baner")

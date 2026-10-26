@@ -6,9 +6,25 @@
 
 {% block content %}
 <section class="section">
-  <div class="section__head">
+  <div class="section__head section__head--row">
     <h1>{{ group.name }}</h1>
+    <a class="btn btn--primary" href="{{ url_for('new_player', token=group.token) }}">Ny spiller</a>
   </div>
+  {% if group.players %}
+  <ul class="entity-list">
+    {% for player in group.players %}
+    <li>
+      <a class="entity-row" href="{{ url_for('edit_player', token=group.token, player_id=player.id) }}">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ player.name }}</span>
+          <span class="entity-row__meta">{{ '%.1f'|format(player.handicap) }}</span>
+        </span>
+        <span class="entity-row__chevron" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
   <p class="empty">Ingen turer ennå.</p>
 </section>
 {% endblock %}
