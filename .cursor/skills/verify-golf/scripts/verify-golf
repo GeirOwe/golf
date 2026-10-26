@@ -28,10 +28,7 @@ ARTIFACTS_DIR = SKILL_DIR / "artifacts"
 CURRENT_PATH = RUNS_DIR / "current.json"
 VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
 REQUIRED_TABLES = {
-    "players",
-    "rounds",
-    "round_scores",
-    "finale_scores",
+    "groups",
     "golf_courses",
     "course_tees",
 }
@@ -170,10 +167,15 @@ def wait_until_usable(base_url: str, database_path: Path, timeout: float = 30) -
                 last = f"health {status} {body[:120]}"
                 time.sleep(0.25)
                 continue
-            status, body = http_get(base_url + "/players", timeout=5)
-            if status == 200 and "Spillere" in body and database_path.is_file():
+            status, body = http_get(base_url + "/")
+            if status != 200 or "Out of bounds" not in body:
+                last = f"home {status} {body[:120]}"
+                time.sleep(0.25)
+                continue
+            status, body = http_get(base_url + "/start", timeout=5)
+            if status == 200 and database_path.is_file():
                 return
-            last = f"players {status} db_exists={database_path.is_file()}"
+            last = f"start {status} db_exists={database_path.is_file()}"
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             last = str(exc)
         time.sleep(0.25)
@@ -252,6 +254,8 @@ def child_environment(database_url: str) -> dict[str, str]:
     env["FLASK_DEBUG"] = "0"
     # Flask and python-dotenv must not import .env. That file holds the live Neon URL.
     env["FLASK_SKIP_DOTENV"] = "1"
+    env["ORGANIZER_SECRET"] = "verify-secret"
+    env["FLASK_SECRET_KEY"] = "verify-flask-secret"
     env.pop("XAI_API_KEY", None)
     env.pop("OPENAI_API_KEY", None)
     return env
@@ -362,9 +366,9 @@ def doctor(args: argparse.Namespace) -> None:
     status, body = http_get(base_url + "/")
     if status != 200 or "Out of bounds" not in body:
         fail("home page is missing Out of bounds")
-    status, body = http_get(base_url + "/players")
-    if status != 200 or "Spillere" not in body:
-        fail("player list is not usable")
+    status, body = http_get(base_url + "/start")
+    if status != 200:
+        fail("organizer page is not usable")
     if not database_path.is_file():
         fail("scratch sqlite file does not exist")
     missing = REQUIRED_TABLES - sqlite_tables(database_path)

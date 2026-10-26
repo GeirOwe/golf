@@ -1,3 +1,5 @@
+import secrets
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
 from typing import List, Optional
@@ -5,6 +7,19 @@ from datetime import datetime
 from models import HandicapError
 
 db = SQLAlchemy()
+
+
+def _new_group_token():
+    return secrets.token_urlsafe()
+
+
+class Group(db.Model):
+    __tablename__ = "groups"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False, default=_new_group_token)
+
 
 class Player(db.Model):
     """Player model for PostgreSQL database."""
@@ -86,20 +101,6 @@ class RoundScore(db.Model):
     # Relationships
     round = db.relationship('Round', backref=db.backref('scores', lazy=True))
     player = db.relationship('Player', backref=db.backref('scores', lazy=True))
-
-
-class FinaleScore(db.Model):
-    """Model for storing one finale score per player."""
-    __tablename__ = 'finale_scores'
-
-    id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False, unique=True)
-    bonus = db.Column(db.Integer, default=0)
-    score = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relationships
-    player = db.relationship('Player', backref=db.backref('finale_score', uselist=False))
 
 
 class GolfCourse(db.Model):
