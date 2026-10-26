@@ -2,7 +2,6 @@ import secrets
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import desc
-from typing import List, Optional
 from datetime import datetime
 from models import HandicapError
 
@@ -19,39 +18,40 @@ class Group(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
     token = db.Column(db.String(64), unique=True, nullable=False, default=_new_group_token)
+    players = db.relationship(
+        "Player",
+        backref="group",
+        order_by=lambda: Player.name,
+    )
 
 
 class Player(db.Model):
-    """Player model for PostgreSQL database."""
-    __tablename__ = 'players'
-    
+    __tablename__ = "players"
+    MAX_HANDICAP = 54.0
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
-    handicap = db.Column(db.Float, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    MAX_HANDICAP = 54.0  # Updated from 36.0
+    handicap = db.Column(db.Float, nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
 
-    def __init__(self, name: str, handicap: float = 0):
-        """Initialize a new player with handicap validation."""
+    def __init__(self, name, handicap, group_id):
+        self.group_id = group_id
+        self._assign(name, handicap)
+
+    def change(self, name, handicap):
+        self._assign(name, handicap)
+
+    def _assign(self, name, handicap):
         if handicap > self.MAX_HANDICAP:
-            raise HandicapError(f"Handicap cannot be greater than {self.MAX_HANDICAP}")
+            raise HandicapError(
+                f"Handicap kan ikke være høyere enn {self.MAX_HANDICAP:.1f}."
+            )
         self.name = name
         self.handicap = handicap
 
     @classmethod
-    def get_all(cls) -> List['Player']:
-        """Return all players sorted by name."""
+    def get_all(cls):
         return cls.query.order_by(cls.name).all()
-
-    @classmethod
-    def get_by_id(cls, player_id: int) -> Optional['Player']:
-        """Find player by ID."""
-        return cls.query.get(player_id)
-
-    def delete(self):
-        """Delete player from database."""
-        db.session.delete(self)
-        db.session.commit()
 
 class Round(db.Model):
     """Round model for PostgreSQL database."""
