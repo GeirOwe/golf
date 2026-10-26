@@ -18,6 +18,7 @@ MarkupSafe==2.1.5
 mccabe==0.7.0
 openai
 packaging==24.2
+pytest==8.3.5
 psycopg2-binary==2.9.9
 pycodestyle==2.11.1
 pyflakes==3.2.0

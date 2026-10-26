@@ -6,7 +6,7 @@ Deployed on Render.com: https://golf-app-w497.onrender.com
 """
 
 import os
-from datetime import datetime, date
+from datetime import datetime
 import locale
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -277,7 +277,7 @@ def _init_schema():
 @app.before_request
 def ensure_schema():
     """Initialize schema on first request so worker boot is not blocked by the DB."""
-    if getattr(app, "_schema_ready", False) or request.path == "/health":
+    if getattr(app, "_schema_ready", False) or request.path in {"/health", "/"}:
         return
     try:
         _init_schema()
@@ -296,20 +296,7 @@ def health():
 # Basic Routes
 @app.route("/")
 def home():
-    """Display home page with countdown to first tee time."""
-    days_until = None
-    try:
-        first_round = Round.query.order_by(Round.play_date.asc()).first()
-        if first_round:
-            today = date.today()
-            tournament_date = first_round.play_date.date()
-            if tournament_date > today:
-                days_until = (tournament_date - today).days
-    except SQLAlchemyError:
-        db.session.rollback()
-        app.logger.exception("Database error on home page")
-
-    return render_template("home.html", days_until=days_until)
+    return render_template("holding.html")
 
 # Player Management Routes
 @app.route("/register", methods=["GET"])

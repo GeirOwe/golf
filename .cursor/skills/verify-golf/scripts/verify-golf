@@ -360,8 +360,8 @@ def doctor(args: argparse.Namespace) -> None:
     if status != 200 or '"ok"' not in body:
         fail(f"/health returned {status}")
     status, body = http_get(base_url + "/")
-    if status != 200 or "Lisboa Høst" not in body:
-        fail("home page is not the Golf app")
+    if status != 200 or "Out of bounds" not in body:
+        fail("home page is missing Out of bounds")
     status, body = http_get(base_url + "/players")
     if status != 200 or "Spillere" not in body:
         fail("player list is not usable")

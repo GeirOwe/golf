@@ -37,7 +37,7 @@ Run this before driving, and again whenever the page looks like the wrong app. E
 - That pid is the listener on `127.0.0.1:<port>`.
 - The process has the scratch `golf.db` open, and its environment does not contain a Postgres or Neon URL.
 - `GET /health` is `{"status":"ok"}`.
-- `GET /` contains `Lisboa Høst` and `GET /players` contains `Spillere`.
+- `GET /` contains `Out of bounds` and `GET /players` contains `Spillere`.
 - The sqlite file is inside this run's directory and has the six application tables.
 
 Anything else is not worth driving. Do not switch to another URL to "make the check pass".
@@ -71,7 +71,7 @@ Stable handles are the visible labels and link text, not coordinates:
 
 | Page | Path | Heading | Title |
 | --- | --- | --- | --- |
-| Home | `/` | `Lisboa Høst 🥳` | `Hjem - Lisboa Høst 🥳` |
+| Home | `/` | `Fore. Out of bounds.` | `Hjem - Lisboa Høst 🥳` |
 | Players | `/players` | `Spillere` | `Spillerliste - Lisboa Høst 🥳` |
 | Register player | `/register` | `Registrer Ny Spiller` | `Registrer Spiller - Lisboa Høst 🥳` |
 | Update player | `/player/<id>/update` | `Oppdater Spiller` | `Oppdater Spiller - Lisboa Høst 🥳` |
@@ -85,7 +85,7 @@ Stable handles are the visible labels and link text, not coordinates:
 | Finale | `/finale` | `Finale` | `Finale - Lisboa Høst 🥳` |
 | Finale result | `/finale/resultat` | `Finaleresultat` | `Finaleresultat - Lisboa Høst 🥳` |
 
-Home links: `HCP oversikt`, `Lokale regler`, `Mottatte slag`, `Tee times`, `Spille oppsett`, `Tabell OOM`, `Finale`. Course registration is not on that menu; open `/baner`.
+`/` is a holding page and has no menu. Open `HCP oversikt` at `/players`, `Lokale regler` at `/local-rules`, `Mottatte slag` at `/baner/mottatte-slag`, `Tee times` at `/rounds`, `Spille oppsett` at `/flights`, `Tabell OOM` at `/scores`, and `Finale` at `/finale`. Course registration is not linked from `/`. Open `/baner`.
 
 Do not open `/ai-story` (it calls an external model API), `/admin`, `/admin/db/reset`, `/scores/reset`, `/rounds/reset`, `/finale/reset`, or `/finale/reset/confirm`. Do not submit a delete or nullstill control. Cleanup removes the scratch directory; it does not delete rows through the app.
 
