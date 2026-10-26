@@ -29,6 +29,7 @@ CURRENT_PATH = RUNS_DIR / "current.json"
 VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
 REQUIRED_TABLES = {
     "groups",
+    "players",
     "golf_courses",
     "course_tees",
 }
