@@ -53,6 +53,7 @@ class Player(db.Model):
     def get_all(cls):
         return cls.query.order_by(cls.name).all()
 
+
 class Round(db.Model):
     """Round model for PostgreSQL database."""
     __tablename__ = 'rounds'
