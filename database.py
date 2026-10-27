@@ -28,11 +28,12 @@ class Group(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
+    slug = db.Column(db.String(64), unique=True, nullable=False)
     token = db.Column(db.String(64), unique=True, nullable=False, default=_new_group_token)
     players = db.relationship(
         "Player",
         backref="group",
-        order_by=lambda: Player.name,
+        order_by=lambda: (Player.handicap, Player.name),
     )
     trips = db.relationship(
         "Trip",

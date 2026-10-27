@@ -138,6 +138,9 @@ def test_scores_feed_the_trip_table_and_ignore_other_rounds(tmp_path):
 
     first = add_round()
     second = add_round()
+    empty_rounds = client.get(trip).get_data(as_text=True)
+    assert empty_rounds.count("btn btn--small btn--ghost") == 2
+    assert "btn btn--small btn--primary" not in empty_rounds
     form = client.get(f"{trip}/rounds/{first}/scores")
     form_body = form.get_data(as_text=True)
     assert form.status_code == 200
@@ -154,7 +157,10 @@ def test_scores_feed_the_trip_table_and_ignore_other_rounds(tmp_path):
         data={f"score_{players['Ada']}": "36", f"score_{players['Bo']}": "30"},
         follow_redirects=True,
     )
-    assert "09:30" in saved.get_data(as_text=True)
+    saved_body = saved.get_data(as_text=True)
+    assert "09:30" in saved_body
+    assert saved_body.count("btn btn--small btn--primary") == 1
+    assert saved_body.count("btn btn--small btn--ghost") == 1
     oom = client.get(trip + "/oom")
     oom_body = oom.get_data(as_text=True)
     assert "<h1>Tabell OOM</h1>" in oom_body

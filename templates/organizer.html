@@ -25,7 +25,7 @@
   <ul class="entity-list">
     {% for group in groups %}
     <li>
-      <a class="entity-row" href="{{ url_for('show_group', token=group.token) }}">
+      <a class="entity-row" href="{{ url_for('show_group', token=group.slug) }}">
         <span class="entity-row__main">
           <span class="entity-row__name">{{ group.name }}</span>
         </span>

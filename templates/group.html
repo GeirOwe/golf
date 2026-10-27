@@ -2,23 +2,21 @@
 
 {% block title %}{{ group.name }}{% endblock %}
 {% block brand %}{{ group.name }}{% endblock %}
-{% block footer %}{{ group.name }}{% endblock %}
-
 {% block content %}
 <section class="section">
   <div class="section__head section__head--row">
     <h1>{{ group.name }}</h1>
     <div class="section__actions">
-      <a class="btn btn--ghost" href="{{ url_for('rename_group', token=group.token) }}">Endre navn</a>
-      <a class="btn btn--primary" href="{{ url_for('new_player', token=group.token) }}">Ny spiller</a>
+      <a class="btn btn--ghost" href="{{ url_for('rename_group', token=group.slug) }}">Endre navn</a>
+      <a class="btn btn--primary" href="{{ url_for('new_player', token=group.slug) }}">Ny spiller</a>
     </div>
   </div>
   {% if group.players %}
   <ul class="entity-list">
     {% for player in group.players %}
     <li>
-      <a class="entity-row" href="{{ url_for('edit_player', token=group.token, player_id=player.id) }}">
-        <span class="entity-row__main">
+      <a class="entity-row" href="{{ url_for('edit_player', token=group.slug, player_id=player.id) }}">
+        <span class="entity-row__main entity-row__main--line">
           <span class="entity-row__name">{{ player.name }}</span>
           <span class="entity-row__meta">{{ '%.1f'|format(player.handicap) }}</span>
         </span>
@@ -30,13 +28,13 @@
   {% endif %}
   <div class="section__head section__head--row">
     <h2>Turer</h2>
-    <a class="btn btn--ghost" href="{{ url_for('new_trip', token=group.token) }}">Ny tur</a>
+    <a class="btn btn--ghost" href="{{ url_for('new_trip', token=group.slug) }}">Ny tur</a>
   </div>
   {% if group.trips %}
   <ul class="entity-list">
     {% for trip in group.trips %}
     <li>
-      <a class="entity-row" href="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">
+      <a class="entity-row" href="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">
         <span class="entity-row__main">
           <span class="entity-row__name">{{ trip.name }}</span>
           <span class="entity-row__meta">{{ trip.destination_name }}</span>

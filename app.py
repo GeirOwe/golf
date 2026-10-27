@@ -1,12 +1,13 @@
 import hmac
 import os
 import re
+import unicodedata
 from datetime import date, datetime
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, session, url_for
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from database import CourseTee, GolfCourse, Group, Player, Round, RoundScore, Trip, TripPlayer, db
@@ -144,10 +145,51 @@ def create_app():
 app = create_app()
 
 
+def _slugify(name):
+    text = (name or "").strip().lower()
+    text = text.replace("æ", "ae").replace("ø", "o").replace("å", "a")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(char for char in text if not unicodedata.combining(char))
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return text[:48] or "gruppe"
+
+
+def _unique_slug(name, group_id=None):
+    base = _slugify(name)
+    candidate = base
+    number = 2
+    while True:
+        existing = Group.query.filter_by(slug=candidate).one_or_none()
+        if existing is None or existing.id == group_id:
+            return candidate
+        candidate = f"{base}-{number}"
+        number += 1
+
+
+def ensure_group_slug_column():
+    """Add groups.slug for databases created before the short group link."""
+    bind = db.session.get_bind()
+    columns = {column["name"] for column in inspect(bind).get_columns("groups")}
+    if "slug" not in columns:
+        db.session.execute(text("ALTER TABLE groups ADD COLUMN slug VARCHAR(64)"))
+        db.session.commit()
+    pending = Group.query.filter(Group.slug.is_(None)).all()
+    for group in pending:
+        group.slug = _unique_slug(group.name, group.id)
+        db.session.flush()
+    if pending:
+        db.session.commit()
+    db.session.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_groups_slug ON groups (slug)"
+    ))
+    db.session.commit()
+
+
 def _init_schema():
     """Create tables and apply lightweight column migrations."""
     db.create_all()
     ensure_course_tee_gender_column()
+    ensure_group_slug_column()
 
 
 @app.before_request
@@ -237,10 +279,10 @@ def create_group():
             groups=groups,
             error="Skriv et gruppenavn.",
         )
-    group = Group(name=name)
+    group = Group(name=name, slug=_unique_slug(name))
     db.session.add(group)
     db.session.commit()
-    return redirect(url_for("show_group", token=group.token))
+    return redirect(url_for("show_group", token=group.slug))
 
 
 @app.route("/g/<token>/navn", methods=["GET", "POST"])
@@ -254,13 +296,16 @@ def rename_group(token):
             error = "Skriv et gruppenavn."
         else:
             group.name = name
+            group.slug = _unique_slug(name, group.id)
             db.session.commit()
-            return redirect(url_for("show_group", token=group.token))
+            return redirect(url_for("show_group", token=group.slug))
     return render_template("group_name.html", group=group, error=error, name=name)
 
 
 def _group_or_404(token):
-    group = Group.query.filter_by(token=token).one_or_none()
+    group = Group.query.filter_by(slug=token).one_or_none()
+    if group is None:
+        group = Group.query.filter_by(token=token).one_or_none()
     if group is None:
         abort(404)
     return group
@@ -307,7 +352,7 @@ def new_player(token):
             else:
                 db.session.add(player)
                 db.session.commit()
-                return redirect(url_for("show_group", token=group.token))
+                return redirect(url_for("show_group", token=group.slug))
     return render_template(
         "players.html",
         group=group,
@@ -333,7 +378,7 @@ def edit_player(token, player_id):
                 error = str(exc)
             else:
                 db.session.commit()
-                return redirect(url_for("show_group", token=group.token))
+                return redirect(url_for("show_group", token=group.slug))
     return render_template(
         "player_form.html",
         group=group,
@@ -350,7 +395,7 @@ def delete_player(token, player_id):
     player = _player_or_404(group, player_id)
     db.session.delete(player)
     db.session.commit()
-    return redirect(url_for("show_group", token=group.token))
+    return redirect(url_for("show_group", token=group.slug))
 
 
 def _trip_or_404(group, trip_id):
@@ -464,7 +509,7 @@ def new_trip(token):
                 ))
             db.session.add(trip)
             db.session.commit()
-            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
     return render_template(
         "trip_form.html",
         group=group,
@@ -489,7 +534,7 @@ def show_trip(token, trip_id):
             trip.yr_location_id = yr_raw or None
             trip.local_rules = rules
             db.session.commit()
-            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
         return _render_trip(group, trip, error, name, destination, yr_raw, rules)
     return _render_trip(
         group,
@@ -517,7 +562,7 @@ def join_trip(token, trip_id, player_id):
             finale_bonus=0 if locked else None,
         ))
         db.session.commit()
-    return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+    return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
 
 
 @app.route(
@@ -533,7 +578,7 @@ def leave_trip(token, trip_id, player_id):
         abort(404)
     db.session.delete(membership)
     db.session.commit()
-    return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+    return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
 
 
 @app.route("/g/<token>/trips/<int:trip_id>/delete", methods=["POST"])
@@ -545,7 +590,7 @@ def delete_trip(token, trip_id):
             db.session.delete(score)
     db.session.delete(trip)
     db.session.commit()
-    return redirect(url_for("show_group", token=group.token))
+    return redirect(url_for("show_group", token=group.slug))
 
 
 def _posted_round():
@@ -641,7 +686,7 @@ def new_round(token, trip_id):
                 kind=kind,
             ))
             db.session.commit()
-            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
     return _render_round(
         group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind or "oom", False,
     )
@@ -674,7 +719,7 @@ def edit_round(token, trip_id, round_id):
             golf_round.pick_up = pick_up or None
             golf_round.kind = kind
             db.session.commit()
-            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
     return _render_round(
         group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind or "oom", True,
     )
@@ -819,7 +864,7 @@ def edit_scores(token, trip_id, round_id):
         if error is None:
             _write_scores(golf_round, parsed)
             db.session.commit()
-            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
         values = {}
         for membership in trip.memberships:
             values[membership.player_id] = request.form.get(f"score_{membership.player_id}")
@@ -876,7 +921,7 @@ def show_finale(token, trip_id):
         if error is None:
             _write_scores(golf_round, parsed)
             db.session.commit()
-            return redirect(url_for("show_finale_result", token=group.token, trip_id=trip.id))
+            return redirect(url_for("show_finale_result", token=group.slug, trip_id=trip.id))
         posted = {
             membership.player_id: request.form.get(f"score_{membership.player_id}")
             for membership in trip.memberships

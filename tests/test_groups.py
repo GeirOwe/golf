@@ -42,8 +42,8 @@ def test_token_lookup_hides_the_other_group(tmp_path):
     first = client.post("/start/groups", data={"name": "Fjord"})
     second = client.post("/start/groups", data={"name": "Algarve"})
     assert first.status_code == 302
-    assert first.headers["Location"].startswith("/g/")
-    assert second.headers["Location"].startswith("/g/")
+    assert first.headers["Location"] == "/g/fjord"
+    assert second.headers["Location"] == "/g/algarve"
 
     fjord = client.get(first.headers["Location"])
     algarve = client.get(second.headers["Location"])
@@ -52,7 +52,7 @@ def test_token_lookup_hides_the_other_group(tmp_path):
     assert fjord.status_code == 200
     assert "<title>Fjord</title>" in fjord_body
     assert '<a class="brand" href="/">Fjord</a>' in fjord_body
-    assert "<p>Fjord</p>" in fjord_body
+    assert "<p>Golf - et Owen Labs produkt</p>" in fjord_body
     assert "Algarve" not in fjord_body
     assert "Ingen turer ennå." in fjord_body
     assert "Lisboa Høst" not in fjord_body
@@ -124,8 +124,9 @@ def test_rename_keeps_the_link_and_the_other_group(tmp_path):
 
     renamed = client.post(path + "/navn", data={"name": "  Kyst  "})
     assert renamed.status_code == 302
-    assert renamed.headers["Location"] == path
-    body = client.get(path).get_data(as_text=True)
+    assert renamed.headers["Location"] == "/g/kyst"
+    assert client.get(path).status_code == 404
+    body = client.get("/g/kyst").get_data(as_text=True)
     assert "<title>Kyst</title>" in body
     assert '<a class="brand" href="/">Kyst</a>' in body
     assert "Fjord" not in body
@@ -134,6 +135,12 @@ def test_rename_keeps_the_link_and_the_other_group(tmp_path):
     assert "Fjord" not in start
     assert "Kyst" not in client.get(algarve).get_data(as_text=True)
     assert client.get("/g/not-a-real-token/navn").status_code == 404
+    with app.app_context():
+        from database import Group
+        token = Group.query.filter_by(name="Kyst").one().token
+    kept = client.get("/g/" + token)
+    assert kept.status_code == 200
+    assert "<title>Kyst</title>" in kept.get_data(as_text=True)
 
 
 def test_removed_routes_are_gone(tmp_path):

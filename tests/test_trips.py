@@ -50,7 +50,7 @@ def _players(names):
 def _chrome(body, name):
     assert f"<title>{name}</title>" in body
     assert f'<a class="brand" href="/">{name}</a>' in body
-    assert f"<p>{name}</p>" in body
+    assert "<p>Golf - et Owen Labs produkt</p>" in body
 
 
 def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
@@ -207,6 +207,7 @@ def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
     group_body = client.get(lisboa).get_data(as_text=True)
     assert "Høst 2026" in group_body
     assert "Høst 2027" in group_body
+    assert group_body.index("Høst 2027") < group_body.index("Høst 2026")
     assert "Ingen turer ennå." not in group_body
     _chrome(group_body, "Lisboa")
     algarve_body = client.get(algarve).get_data(as_text=True)
