@@ -1,0 +1,7 @@
+feature: scores
+entry: Score on a trip round, then Tabell OOM
+run_id: 20261027175733-23381
+url: http://127.0.0.1:60285
+isolated: sqlite
+
+Ada 36 and Bo 30 showed snitt 36.0 and 30.0. Editing Ada to 40 replaced 36. Bo at 0 stayed stored and left the table. A blank field deleted Bo's row. Bo and Cia at 30 listed Bo above Cia. A second round of 20 made Ada 42 with snitt 21.0. A score of 201 stayed on the form with "Skriv et heltall fra 0 til 200." and did not change the stored scores. The Algarve token on the Lisboa score form returned Fore! The phone width kept scrollWidth at 375 and Ada's total of 42 visible. The median of five OOM loads was 0.0044 seconds.
