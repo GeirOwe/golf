@@ -1,0 +1,5 @@
+feature=mottatte-slag
+run_id=20261027202749-45569
+url=http://127.0.0.1:54231
+entry=/baner/ny then /g/lisboa/mottatte-slag
+observed=Lagre bane Verify Hills / Verify Park / Gul / par 72 / CR 71.2 / slope 125. Title became Verify Hills. Group strokes showed Verify Ada, 18.2, 19. Public /baner/mottatte-slag said Åpne gruppen for å se spillerne and did not include the player.

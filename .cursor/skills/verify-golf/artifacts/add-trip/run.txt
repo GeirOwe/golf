@@ -1,0 +1,5 @@
+feature=add-trip
+run_id=20261027202749-45569
+url=http://127.0.0.1:54231
+entry=/g/lisboa Ny tur
+observed=Ny tur Høst 2026, destination Lisboa, Verify Ada checked. Trip heading Høst 2026, title Høst 2026, Runder said Ingen golfrunder registrert ennå. Slett tur and Fjern were visible and not used.

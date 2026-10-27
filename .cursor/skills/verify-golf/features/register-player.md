@@ -1,44 +1,31 @@
 # Register a player
 
-Register a player lets a user add a name and handicap from HCP oversikt, see that player on the list, and change the handicap from the same list.
+A player belongs to one group. `Ny spiller` saves a name and handicap on that group, and the row opens an edit form.
 
 ## Sub-features
 
-- `players-empty` shows the empty list before any player exists.
-- `players-create` saves a name and handicap and returns home.
-- `players-persist` shows the saved name and handicap on the player list.
-- `players-update` changes the handicap and shows the new value on the list.
+- `players-empty` shows a new group with no player row and no empty-player sentence.
+- `players-create` saves a name and handicap and returns to the group.
+- `players-update` changes the handicap and shows one decimal on the group.
 
 ## How to get to it (user POV)
 
-- On the home page, choose `HCP oversikt`.
-- On the player list, choose `Ny Spiller`.
-- On a player row, choose `Endre`.
+- On the group page, choose `Ny spiller`.
+- On the group page, choose the player row. The accessible name is the name and the handicap, not `Endre`.
 
 ## Driving it with cursor-ide-browser
 
 Preconditions:
 
-- `verify-golf doctor` prints `ok=1` and `isolated=sqlite`.
-- The scratch database has no player named `Verify Ada`.
-- The browser tab URL is the `url` from that same launch.
+- A group is open, for example `/g/lisboa`.
+- Set `#handicap` with the number-input setter in `../SKILL.md`.
 
-- **Open the list.** From home, choose `HCP oversikt`. Snapshot, then `browser_click` the link named `HCP oversikt`. Snapshot again. The heading is `Spillere` and `document.body.innerText` contains `Ingen spillere registrert ennå.` The document title is `Spillerliste - Lisboa Høst 🥳`.
-- **Open the form.** Choose `Ny Spiller`. Snapshot, then `browser_click` the link named `Ny Spiller`. Snapshot again. The heading is `Registrer Ny Spiller`.
-- **Enter the player.** Snapshot. `browser_fill` the textbox named `Spillernavn:` with `Verify Ada`. Set `#handicap` to `12.4` with the number-input setter in `SKILL.md`. Snapshot again. The textbox value is `Verify Ada` and the spinbutton value is `12.4`.
-- **Save.** Save that snapshot to `artifacts/register-player/form.aria.txt` and copy the screenshot to `artifacts/register-player/form.png`. `browser_click` the button named `Lagre`. Snapshot again. The home heading is `Lisboa Høst 🥳`.
-- **Confirm persistence.** Choose `HCP oversikt` again and snapshot again. `document.body.innerText` contains `Verify Ada` and `12.4`, and it does not contain `Ingen spillere registrert ennå.` The list snapshot itself does not include the cell text.
-- **Update handicap.** `browser_click` the link named `Endre`. Snapshot again. The heading is `Oppdater Spiller`, the textbox is `Verify Ada`, and the spinbutton is `12.4`. The back link is `Tilbake`. Set `#handicap` to `18.2` with the number-input setter. Snapshot again, then `browser_click` the button named `Endre`. Snapshot again. `document.body.innerText` on the player list contains `Verify Ada` and `18.2`.
-- **Proof.** Save the list snapshot to `artifacts/register-player/list.aria.txt`, the inner text and document title to `artifacts/register-player/title.txt`, and the copied screenshot to `artifacts/register-player/list.png`. Run `verify-golf sql --run-id <run-id> "SELECT name, handicap FROM players"`. The only row is `Verify Ada` with handicap `18.2`.
+- Action: add a player. Choose `Ny spiller`. The heading is `Ny spiller`. Fill `Navn` with `Verify Ada`, set `#handicap` to `12.4`, and choose `Lagre`. Result: the group page shows `Verify Ada` and `12.4`. `document.title` is the group name.
+- Action: change the handicap. Choose the `Verify Ada 12.4` row. The heading is `Verify Ada`. Set `#handicap` to `18.2` and choose `Lagre`. Result: the group page shows `Verify Ada` and `18.2`.
+- Check: `verify-golf sql --run-id <run-id> "SELECT name, handicap FROM players"` returns `Verify Ada` and `18.2`.
 
 ## Gotchas
 
-- `Lagre` on this form redirects home. The home page does not list players. Reopen `HCP oversikt` before treating the save as proved.
-- Handicap above `54` redisplays the form with `Handicap cannot be greater than 54.0` and does not add a player.
-- An empty name does not add a player. Assert the list, not the redirect alone.
-- The list link `Endre` and the update button `Endre` are different controls. The button is on `Oppdater Spiller`. The update page's other link is `Tilbake`.
-- `browser_snapshot` on the player list does not include the name or handicap cells. Assert `document.body.innerText` and the screenshot.
-- `browser_fill` does not accept the Handicap spinbutton. Use the number-input setter on `#handicap`.
-- A click result still shows the previous URL. Snapshot again before reading the next page.
-- There is no delete control on the player list. Do not call `/player/<id>/delete`.
-- Jinja prints `18.2`, not `18.20`. Assert the rendered text.
+- There is no `HCP oversikt`, `Spillere` heading, or `Spillernavn:` field.
+- The edit page has `Slett`. Do not submit it.
+- A handicap above 54 stays on the form with `Handicap kan ikke være høyere enn 54.0.`

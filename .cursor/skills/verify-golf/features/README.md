@@ -1,6 +1,6 @@
 # Golf verification map
 
-This directory is the maintained source for verifying the user-facing behavior of the Lisboa Høst golf app. Read this index before driving the app, then use the matching feature file as the recipe.
+This directory is the maintained source for verifying the user-facing behavior of the golf app. Read this index before driving the app, then use the matching feature file as the recipe.
 
 ## Baseline preconditions
 
@@ -21,13 +21,13 @@ This directory is the maintained source for verifying the user-facing behavior o
 - List tables hide cell text in the accessibility snapshot. Read `document.body.innerText` and keep the screenshot.
 - Run browser actions through `cursor-ide-browser`.
 - A mutation is proved by doing it in the browser, reopening a user-facing page, and running `verify-golf sql` read-only against the scratch file.
-- Do not submit delete, reset, or nullstill controls. Those routes are out of bounds even on the scratch database.
+- Do not submit `Slett`, `Slett tur`, or `Fjern`. Those controls are out of bounds even on the scratch database.
 - Leave proof artifacts in place during cleanup.
 
 ## Proof and skip reporting
 
 - Capture the user action and the resulting state, not only the final screen.
-- UI proof includes an accessibility snapshot, a screenshot, and `document.title` ending in `Lisboa Høst 🥳`.
+- UI proof includes an accessibility snapshot, a screenshot, and `document.title`. The title is the group name, the trip name, or the page name.
 - Mutation proof includes the reopened page and the read-only SQL rows.
 - Record the feature id, entry point, run id, and local URL in the artifact directory.
 - Report an unreachable path with the attempted action and the unmet precondition.
@@ -44,10 +44,11 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 
 ## Features
 
-- [Register a player](./register-player.md) covers the empty list, registration, persistence, and handicap update from HCP oversikt.
-- [Add a tee time](./add-round.md) covers creating a round and seeing it on Tee times.
+- [Open or create a group](./open-group.md) covers the home link gate and creating a group at `/start`.
+- [Rename a group](./rename-group.md) covers the new name and the new short address.
+- [Register a player](./register-player.md) covers adding a player to a group and changing the handicap.
+- [Add a trip](./add-trip.md) covers creating a trip for the checked players.
+- [Add a round](./add-round.md) covers saving a round on a trip.
 - [Enter scores](./enter-scores.md) covers Stableford entry and the Order of Merit table.
-- [Received strokes](./mottatte-slag.md) covers course registration and WHS strokes per player.
-- [Finale](./finale.md) covers finale score entry, bonus, and the read-only result table.
-
-`Lokale regler` (`/local-rules`) and `Spille oppsett` (`/flights`) are static home-menu pages. They are not mapped yet. A run that only opens them does not cover the features above.
+- [Received strokes](./mottatte-slag.md) covers course registration and WHS strokes for one group.
+- [Finale](./finale.md) covers finale score entry, the locked bonus, and the medal result.
