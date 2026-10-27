@@ -1,11 +1,22 @@
 import secrets
 
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import desc
 from datetime import datetime
+
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import UniqueConstraint, desc
 from models import HandicapError
 
 db = SQLAlchemy()
+
+_WEEKDAYS_NO = (
+    "Mandag",
+    "Tirsdag",
+    "Onsdag",
+    "Torsdag",
+    "Fredag",
+    "Lørdag",
+    "Søndag",
+)
 
 
 def _new_group_token():
@@ -22,6 +33,12 @@ class Group(db.Model):
         "Player",
         backref="group",
         order_by=lambda: Player.name,
+    )
+    trips = db.relationship(
+        "Trip",
+        backref="group",
+        cascade="all, delete-orphan",
+        order_by=lambda: (Trip.created_at.desc(), Trip.id.desc()),
     )
 
 
@@ -54,40 +71,72 @@ class Player(db.Model):
         return cls.query.order_by(cls.name).all()
 
 
-class Round(db.Model):
-    """Round model for PostgreSQL database."""
-    __tablename__ = 'rounds'
-    
+class Trip(db.Model):
+    __tablename__ = "trips"
+
     id = db.Column(db.Integer, primary_key=True)
-    course_name = db.Column(db.String(100), nullable=False)
-    play_date = db.Column(db.DateTime, nullable=False)
-    tee_time = db.Column(db.String(5), nullable=False)
-    pick_up = db.Column(db.String(12))  # New field
+    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    destination_name = db.Column(db.String(120), nullable=False)
+    yr_location_id = db.Column(db.String(40))
+    local_rules = db.Column(db.Text, nullable=False, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    memberships = db.relationship(
+        "TripPlayer",
+        backref="trip",
+        cascade="all, delete-orphan",
+    )
 
-    @classmethod
-    def get_all(cls):
-        """Return all rounds sorted by date ascending."""
-        return cls.query.order_by(cls.play_date.asc()).all()
+    def members(self):
+        return sorted(
+            self.memberships,
+            key=lambda membership: membership.player.name.casefold(),
+        )
 
-    @classmethod
-    def get_by_id(cls, round_id):
-        """Find round by ID."""
-        return cls.query.get(round_id)
 
-    def delete(self):
-        """Delete round and its scores from database."""
-        RoundScore.query.filter_by(round_id=self.id).delete()
-        db.session.delete(self)
-        db.session.commit()
-    
-    def get_player_score(self, player_id):
-        """Get score for a specific player."""
-        score = RoundScore.query.filter_by(
-            round_id=self.id, 
-            player_id=player_id
-        ).first()
-        return score.score if score else None
+class TripPlayer(db.Model):
+    __tablename__ = "trip_players"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "player_id", name="uq_trip_player"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
+    handicap = db.Column(db.Float, nullable=False)
+    player = db.relationship(
+        "Player",
+        backref=db.backref("memberships", cascade="all, delete-orphan"),
+    )
+
+
+class Round(db.Model):
+    __tablename__ = "rounds"
+
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("golf_courses.id"), nullable=False)
+    tee_id = db.Column(db.Integer, db.ForeignKey("course_tees.id"), nullable=False)
+    play_date = db.Column(db.Date, nullable=False)
+    tee_time = db.Column(db.String(5), nullable=False)
+    pick_up = db.Column(db.String(12))
+    kind = db.Column(db.String(10), nullable=False, default="oom")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    trip = db.relationship(
+        "Trip",
+        backref=db.backref(
+            "rounds",
+            cascade="all, delete-orphan",
+            order_by=lambda: Round.play_date.asc(),
+        ),
+    )
+    course = db.relationship("GolfCourse")
+    tee = db.relationship("CourseTee")
+
+    @property
+    def display_date(self):
+        return f"{_WEEKDAYS_NO[self.play_date.weekday()]} {self.play_date.strftime('%d.%m')}"
+
 
 class RoundScore(db.Model):
     """Model for storing player scores for each round."""

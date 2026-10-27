@@ -1,12 +1,14 @@
 import hmac
 import os
+import re
+from datetime import date, datetime
 
 from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import CourseTee, GolfCourse, Group, Player, db
+from database import CourseTee, GolfCourse, Group, Player, Round, Trip, TripPlayer, db
 from models import HandicapError, course_handicap
 
 
@@ -22,6 +24,8 @@ def ensure_course_tee_gender_column():
 
 
 TEE_GENDERS = ("Herre", "Dame")
+_YR_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,39}$")
+_TEE_TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 def _parse_tee_rows_from_form(form):
@@ -302,6 +306,302 @@ def delete_player(token, player_id):
     db.session.delete(player)
     db.session.commit()
     return redirect(url_for("show_group", token=group.token))
+
+
+def _trip_or_404(group, trip_id):
+    trip = Trip.query.filter_by(id=trip_id, group_id=group.id).one_or_none()
+    if trip is None:
+        abort(404)
+    return trip
+
+
+def _round_or_404(trip, round_id):
+    golf_round = Round.query.filter_by(id=round_id, trip_id=trip.id).one_or_none()
+    if golf_round is None:
+        abort(404)
+    return golf_round
+
+
+def _latest_trip(group):
+    return (
+        Trip.query.filter_by(group_id=group.id)
+        .order_by(Trip.created_at.desc(), Trip.id.desc())
+        .first()
+    )
+
+
+def _posted_trip_fields():
+    name = (request.form.get("name") or "").strip()
+    destination = (request.form.get("destination_name") or "").strip()
+    yr_raw = (request.form.get("yr_location_id") or "").strip()
+    rules = (request.form.get("local_rules") or "").strip()
+    error = None
+    if not name:
+        error = "Skriv et navn."
+    elif len(name) > 120:
+        error = "Navnet er for langt."
+    elif not destination:
+        error = "Skriv en destinasjon."
+    elif len(destination) > 120:
+        error = "Destinasjonen er for lang."
+    elif yr_raw and _YR_ID.fullmatch(yr_raw) is None:
+        error = "Ugyldig yr-id."
+    return name, destination, yr_raw, rules, error
+
+
+def _checked_players(group):
+    selected = []
+    for raw in request.form.getlist("player_ids"):
+        if str(raw).isdigit():
+            selected.append(int(raw))
+    if not selected:
+        return []
+    return (
+        Player.query.filter(Player.group_id == group.id, Player.id.in_(selected))
+        .order_by(Player.name.asc())
+        .all()
+    )
+
+
+def _days_until(trip):
+    if not trip.rounds:
+        return None
+    earliest = min(golf_round.play_date for golf_round in trip.rounds)
+    today = date.today()
+    if earliest > today:
+        return (earliest - today).days
+    return None
+
+
+def _render_trip(group, trip, error, name, destination, yr_raw, rules):
+    member_ids = {membership.player_id for membership in trip.memberships}
+    return render_template(
+        "trip.html",
+        group=group,
+        trip=trip,
+        members=trip.members(),
+        available=[player for player in group.players if player.id not in member_ids],
+        days_until=_days_until(trip),
+        error=error,
+        name=name,
+        destination_name=destination,
+        yr_location_id=yr_raw,
+        local_rules=rules,
+    )
+
+
+@app.route("/g/<token>/trips", methods=["GET", "POST"])
+def new_trip(token):
+    group = _group_or_404(token)
+    latest = _latest_trip(group)
+    error = None
+    name = ""
+    destination = ""
+    yr_raw = ""
+    rules = latest.local_rules if latest is not None else ""
+    selected_ids = [player.id for player in group.players]
+    if request.method == "POST":
+        name, destination, yr_raw, rules, error = _posted_trip_fields()
+        selected = _checked_players(group)
+        selected_ids = [player.id for player in selected]
+        if error is None:
+            trip = Trip(
+                group_id=group.id,
+                name=name,
+                destination_name=destination,
+                yr_location_id=yr_raw or None,
+                local_rules=rules,
+            )
+            for player in selected:
+                trip.memberships.append(TripPlayer(
+                    player_id=player.id,
+                    handicap=player.handicap,
+                ))
+            db.session.add(trip)
+            db.session.commit()
+            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+    return render_template(
+        "trip_form.html",
+        group=group,
+        error=error,
+        name=name,
+        destination_name=destination,
+        yr_location_id=yr_raw,
+        local_rules=rules,
+        selected_ids=selected_ids,
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>", methods=["GET", "POST"])
+def show_trip(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    if request.method == "POST":
+        name, destination, yr_raw, rules, error = _posted_trip_fields()
+        if error is None:
+            trip.name = name
+            trip.destination_name = destination
+            trip.yr_location_id = yr_raw or None
+            trip.local_rules = rules
+            db.session.commit()
+            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+        return _render_trip(group, trip, error, name, destination, yr_raw, rules)
+    return _render_trip(
+        group,
+        trip,
+        None,
+        trip.name,
+        trip.destination_name,
+        trip.yr_location_id or "",
+        trip.local_rules or "",
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/players/<int:player_id>", methods=["POST"])
+def join_trip(token, trip_id, player_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    player = _player_or_404(group, player_id)
+    already = TripPlayer.query.filter_by(trip_id=trip.id, player_id=player.id).one_or_none()
+    if already is None:
+        db.session.add(TripPlayer(
+            trip_id=trip.id,
+            player_id=player.id,
+            handicap=player.handicap,
+        ))
+        db.session.commit()
+    return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+
+
+@app.route(
+    "/g/<token>/trips/<int:trip_id>/players/<int:player_id>/delete",
+    methods=["POST"],
+)
+def leave_trip(token, trip_id, player_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    player = _player_or_404(group, player_id)
+    membership = TripPlayer.query.filter_by(trip_id=trip.id, player_id=player.id).one_or_none()
+    if membership is None:
+        abort(404)
+    db.session.delete(membership)
+    db.session.commit()
+    return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/delete", methods=["POST"])
+def delete_trip(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    for golf_round in list(trip.rounds):
+        for score in list(golf_round.scores):
+            db.session.delete(score)
+    db.session.delete(trip)
+    db.session.commit()
+    return redirect(url_for("show_group", token=group.token))
+
+
+def _posted_round():
+    course_id = request.form.get("course_id", type=int)
+    tee_id = request.form.get("tee_id", type=int)
+    play_raw = (request.form.get("play_date") or "").strip()
+    tee_time = (request.form.get("tee_time") or "").strip()
+    pick_up = (request.form.get("pick_up") or "").strip()
+    course = GolfCourse.get_by_id(course_id) if course_id else None
+    tee = None
+    if course is not None and tee_id:
+        tee = CourseTee.query.filter_by(id=tee_id, course_id=course.id).one_or_none()
+    played = None
+    error = None
+    if course is None:
+        error = "Velg en bane."
+    elif tee is None:
+        error = "Velg et tee."
+    else:
+        try:
+            played = datetime.strptime(play_raw, "%Y-%m-%d").date()
+        except ValueError:
+            error = "Skriv en dato."
+    if error is None and _TEE_TIME.fullmatch(tee_time) is None:
+        error = "Skriv en teetime."
+    if error is None and len(pick_up) > 12:
+        error = "Henting kan ikke være lengre enn 12 tegn."
+    return course, tee, played, play_raw, tee_time, pick_up, error
+
+
+def _render_round(group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, editing):
+    return render_template(
+        "round_form.html",
+        group=group,
+        trip=trip,
+        courses=GolfCourse.get_all(),
+        error=error,
+        course_id=course_id,
+        tee_id=tee_id,
+        play_date=play_raw,
+        tee_time=tee_time,
+        pick_up=pick_up,
+        editing=editing,
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/rounds", methods=["GET", "POST"])
+def new_round(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    error = None
+    course_id = None
+    tee_id = None
+    play_raw = ""
+    tee_time = ""
+    pick_up = ""
+    if request.method == "POST":
+        course, tee, played, play_raw, tee_time, pick_up, error = _posted_round()
+        course_id = course.id if course is not None else request.form.get("course_id", type=int)
+        tee_id = tee.id if tee is not None else request.form.get("tee_id", type=int)
+        if error is None:
+            db.session.add(Round(
+                trip_id=trip.id,
+                course_id=course.id,
+                tee_id=tee.id,
+                play_date=played,
+                tee_time=tee_time,
+                pick_up=pick_up or None,
+                kind="oom",
+            ))
+            db.session.commit()
+            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+    return _render_round(
+        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, False,
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/rounds/<int:round_id>", methods=["GET", "POST"])
+def edit_round(token, trip_id, round_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    golf_round = _round_or_404(trip, round_id)
+    error = None
+    course_id = golf_round.course_id
+    tee_id = golf_round.tee_id
+    play_raw = golf_round.play_date.isoformat()
+    tee_time = golf_round.tee_time
+    pick_up = golf_round.pick_up or ""
+    if request.method == "POST":
+        course, tee, played, play_raw, tee_time, pick_up, error = _posted_round()
+        course_id = course.id if course is not None else request.form.get("course_id", type=int)
+        tee_id = tee.id if tee is not None else request.form.get("tee_id", type=int)
+        if error is None:
+            golf_round.course_id = course.id
+            golf_round.tee_id = tee.id
+            golf_round.play_date = played
+            golf_round.tee_time = tee_time
+            golf_round.pick_up = pick_up or None
+            db.session.commit()
+            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+    return _render_round(
+        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, True,
+    )
 
 
 @app.route("/baner")

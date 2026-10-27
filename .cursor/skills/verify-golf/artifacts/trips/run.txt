@@ -1,0 +1,7 @@
+feature: trips
+entry: /start, then Ny tur on the group
+run_id: 20261026211657-72365
+url: http://127.0.0.1:57158
+isolated: sqlite
+
+A new trip lists every group player checked. Unchecking Bo left Bo on Lisboa and off Høst 2026. Ada joined at 12.4. After her group handicap became 18.2, Høst 2026 still showed 12.4. Høst 2027 copied the local rules and stored Ada at 18.2. The Høst 2026 round stayed: Verify Hills, Blå, 10:00, Sandvika. Algarve showed Ingen turer ennå. The holding page stayed Fore. Out of bounds.

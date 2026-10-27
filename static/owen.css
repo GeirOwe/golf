@@ -441,6 +441,16 @@ a:hover {
   color: var(--ink-soft);
 }
 
+.forecast {
+  margin: 0 0 2rem;
+}
+
+.forecast img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 .empty p {
   margin: 0 0 1rem;
 }

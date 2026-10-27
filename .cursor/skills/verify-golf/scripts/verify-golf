@@ -30,6 +30,9 @@ VENV_PYTHON = REPO_ROOT / "venv" / "bin" / "python"
 REQUIRED_TABLES = {
     "groups",
     "players",
+    "trips",
+    "trip_players",
+    "rounds",
     "golf_courses",
     "course_tees",
 }
