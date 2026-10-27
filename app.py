@@ -486,6 +486,7 @@ def _render_trip(group, trip, error, name, destination, yr_raw, rules):
         members=trip.members(),
         available=[player for player in group.players if player.id not in member_ids],
         days_until=_days_until(trip),
+        finale_scored=_finale_has_scores(trip),
         error=error,
         name=name,
         destination_name=destination,
@@ -640,6 +641,11 @@ def _finale_round(trip):
         if golf_round.kind == "finale":
             return golf_round
     return None
+
+
+def _finale_has_scores(trip):
+    golf_round = _finale_round(trip)
+    return golf_round is not None and bool(golf_round.scores)
 
 
 def _chosen_kind(trip, current):
