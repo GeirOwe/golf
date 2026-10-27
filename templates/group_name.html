@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }}{% endblock %}
+{% block brand %}{{ group.name }}{% endblock %}
+{% block footer %}{{ group.name }}{% endblock %}
+
+{% block content %}
+<section class="section section--narrow">
+  <p class="crumbs"><a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a></p>
+  <div class="section__head">
+    <h1>Endre navn</h1>
+  </div>
+  <form class="form" method="post" action="{{ url_for('rename_group', token=group.token) }}">
+    <div class="field">
+      <label for="name">Gruppenavn</label>
+      <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off" required>
+      {% if error %}
+      <p class="field__error">{{ error }}</p>
+      {% endif %}
+    </div>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">Lagre</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

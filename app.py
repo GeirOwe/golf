@@ -243,6 +243,22 @@ def create_group():
     return redirect(url_for("show_group", token=group.token))
 
 
+@app.route("/g/<token>/navn", methods=["GET", "POST"])
+def rename_group(token):
+    group = _group_or_404(token)
+    error = None
+    name = group.name
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            error = "Skriv et gruppenavn."
+        else:
+            group.name = name
+            db.session.commit()
+            return redirect(url_for("show_group", token=group.token))
+    return render_template("group_name.html", group=group, error=error, name=name)
+
+
 def _group_or_404(token):
     group = Group.query.filter_by(token=token).one_or_none()
     if group is None:

@@ -8,7 +8,10 @@
 <section class="section">
   <div class="section__head section__head--row">
     <h1>{{ group.name }}</h1>
-    <a class="btn btn--primary" href="{{ url_for('new_player', token=group.token) }}">Ny spiller</a>
+    <div class="section__actions">
+      <a class="btn btn--ghost" href="{{ url_for('rename_group', token=group.token) }}">Endre navn</a>
+      <a class="btn btn--primary" href="{{ url_for('new_player', token=group.token) }}">Ny spiller</a>
+    </div>
   </div>
   {% if group.players %}
   <ul class="entity-list">

@@ -105,6 +105,37 @@ def test_home_asks_for_the_group_link(tmp_path):
     assert "Lisboa Høst" not in body
 
 
+def test_rename_keeps_the_link_and_the_other_group(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    created = client.post("/start/groups", data={"name": "Fjord"})
+    path = created.headers["Location"]
+    algarve = client.post("/start/groups", data={"name": "Algarve"}).headers["Location"]
+
+    form = client.get(path + "/navn")
+    form_body = form.get_data(as_text=True)
+    assert form.status_code == 200
+    assert "<h1>Endre navn</h1>" in form_body
+    assert 'value="Fjord"' in form_body
+
+    blank = client.post(path + "/navn", data={"name": "   "})
+    assert "Skriv et gruppenavn." in blank.get_data(as_text=True)
+    assert "<title>Fjord</title>" in client.get(path).get_data(as_text=True)
+
+    renamed = client.post(path + "/navn", data={"name": "  Kyst  "})
+    assert renamed.status_code == 302
+    assert renamed.headers["Location"] == path
+    body = client.get(path).get_data(as_text=True)
+    assert "<title>Kyst</title>" in body
+    assert '<a class="brand" href="/">Kyst</a>' in body
+    assert "Fjord" not in body
+    start = client.get("/start").get_data(as_text=True)
+    assert "Kyst" in start
+    assert "Fjord" not in start
+    assert "Kyst" not in client.get(algarve).get_data(as_text=True)
+    assert client.get("/g/not-a-real-token/navn").status_code == 404
+
+
 def test_removed_routes_are_gone(tmp_path):
     client = _client(tmp_path)
     for path in ("/players", "/ai-story", "/flights", "/finale", "/admin"):
