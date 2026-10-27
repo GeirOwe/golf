@@ -171,6 +171,10 @@ def test_finale_bonus_locks_and_the_finale_round_stays_out_of_oom(tmp_path):
         },
     )
 
+    before = client.get(trip).get_data(as_text=True)
+    assert ">Finale</a>" in before
+    assert "Finaleresultat" not in before
+
     saved = client.post(
         trip + "/finale",
         data={
@@ -196,6 +200,9 @@ def test_finale_bonus_locks_and_the_finale_round_stays_out_of_oom(tmp_path):
     assert stored["Ada"] == 4
     assert stored["Bo"] == 0
     assert stored["Cia"] == 0
+    after = client.get(trip).get_data(as_text=True)
+    assert ">Finaleresultat</a>" in after
+    assert ">Finale</a>" not in after
 
     client.post(
         f"{trip}/rounds/{first}/scores",

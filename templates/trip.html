@@ -11,7 +11,11 @@
       <p>{{ trip.destination_name }}</p>
     </div>
     <div class="section__actions">
+      {% if finale_scored %}
+      <a class="btn btn--ghost" href="{{ url_for('show_finale_result', token=group.slug, trip_id=trip.id) }}">Finaleresultat</a>
+      {% else %}
       <a class="btn btn--ghost" href="{{ url_for('show_finale', token=group.slug, trip_id=trip.id) }}">Finale</a>
+      {% endif %}
       <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.slug, trip_id=trip.id) }}">Tabell OOM</a>
       <a class="btn btn--primary" href="{{ url_for('new_round', token=group.slug, trip_id=trip.id) }}">Ny runde</a>
     </div>
