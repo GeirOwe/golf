@@ -12,6 +12,14 @@ os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 from app import app
 
 
+def test_server_error_page_renders():
+    from app import server_error
+    with app.test_request_context("/"):
+        body, status = server_error(None)
+    assert status == 500
+    assert "Noe gikk galt" in body
+
+
 def test_home_asks_for_the_group_link_without_tables():
     response = app.test_client().get("/")
     assert response.status_code == 200

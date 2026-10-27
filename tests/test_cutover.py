@@ -177,6 +177,20 @@ def test_script_rolls_back_when_a_course_count_changes(tmp_path, monkeypatch):
     assert "finale_scores" in tables
 
 
+def test_script_refuses_a_database_that_is_already_new(tmp_path):
+    path = tmp_path / "golf.db"
+    _seed(path)
+    url = "sqlite:///" + path.resolve().as_posix()
+    assert _run_script(path, database_url=url).returncode == 0
+    again = _run_script(path, database_url=url)
+    assert again.returncode == 1
+    assert "cutover already applied" in again.stderr
+    courses, tees, _players, tables = _counts(path)
+    assert courses == 2
+    assert tees == 3
+    assert "trips" in tables
+
+
 def test_gate_lists_no_group_names_and_opens_the_link(tmp_path):
     _use_database(tmp_path / "golf.db")
     client = app.test_client()

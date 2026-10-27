@@ -59,7 +59,9 @@ Tabellene opprettes ved første vanlige sideforespørsel. `/health` gjør det ik
 gunicorn -c gunicorn.conf.py app:app
 ```
 
-Sett `DATABASE_URL` og eventuelt `XAI_API_KEY` i miljøet. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. Mot Neon brukes pooler-tilkoblingen (`-pooler`) med `NullPool`; ellers en liten connection pool med `pool_pre_ping`.
+Sett `DATABASE_URL`, `FLASK_SECRET_KEY` og `ORGANIZER_SECRET` i Render. `FLASK_SECRET_KEY` er en lang tilfeldig streng som signerer innloggingen på `/start`. `ORGANIZER_SECRET` er koden du skriver der. En `postgres://`-adresse skrives om til `postgresql://` ved oppstart. Mot Neon brukes pooler-tilkoblingen (`-pooler`) med `NullPool`; ellers en liten connection pool med `pool_pre_ping`.
+
+`scripts/cutover.py` er allerede kjørt mot Neon. Ikke kjør den på nytt. Den stopper selv hvis de nye tabellene allerede finnes.
 
 ## Database
 

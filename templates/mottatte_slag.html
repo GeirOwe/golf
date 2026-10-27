@@ -56,7 +56,9 @@
             par {{ selected_tee.par }}, CR {{ selected_tee.course_rating }}, slope {{ selected_tee.slope_rating }}
         </p>
 
-        {% if player_rows %}
+        {% if group is none %}
+        <p>Åpne gruppen for å se spillerne.</p>
+        {% elif player_rows %}
         <div class="score-container">
             <table class="player-table">
                 <thead>
@@ -88,7 +90,11 @@
     <p>Ingen baner registrert ennå.</p>
     {% endif %}
 
+    {% if group %}
+    <a href="{{ url_for('show_group', token=group.slug) }}" class="button">Tilbake</a>
+    {% else %}
     <a href="{{ url_for('home') }}" class="button">Hjem</a>
+    {% endif %}
 
     <script>
         (function () {

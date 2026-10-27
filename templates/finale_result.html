@@ -12,6 +12,7 @@
     <h1>Finaleresultat</h1>
   </div>
   {% if golf_round and table %}
+  <div class="sheet-scroll">
   <table class="sheet">
     <thead>
       <tr>
@@ -34,6 +35,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="empty">Ingen finale ennå.</p>
   {% endif %}

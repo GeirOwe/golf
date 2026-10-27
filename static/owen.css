@@ -475,26 +475,44 @@ a.entity-row__main {
   height: auto;
 }
 
-.sheet {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
+.sheet-scroll {
+  overflow-x: auto;
   margin: 0 0 1.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sheet {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .sheet th,
 .sheet td {
-  padding: 0.75rem 0.35rem;
+  padding: 0.65rem 0.55rem;
   border-bottom: 1px solid var(--line);
   text-align: left;
-  vertical-align: baseline;
-  overflow-wrap: anywhere;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.sheet th:first-child,
+.sheet td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f3f2ee;
+}
+
+.sheet thead th:first-child {
+  z-index: 2;
 }
 
 .sheet th {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -502,6 +520,47 @@ a.entity-row__main {
 .sheet .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.sheet__day,
+.sheet__date {
+  display: block;
+  line-height: 1.15;
+}
+
+.sheet__date {
+  margin-top: 0.2rem;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .sheet-scroll {
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+    padding-left: 0.65rem;
+    padding-right: 0.2rem;
+  }
+
+  .sheet th,
+  .sheet td {
+    padding: 0.5rem 0.28rem;
+  }
+
+  .sheet th {
+    letter-spacing: 0.02em;
+  }
+
+  .sheet td:first-child {
+    font-size: 0.95rem;
+  }
+
+  .sheet th.sheet__round {
+    padding-right: 0.15rem;
+    padding-left: 0.15rem;
+    font-size: 0.65rem;
+  }
 }
 
 .empty p {

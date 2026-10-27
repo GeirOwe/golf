@@ -12,6 +12,7 @@
     <h1>Tabell OOM</h1>
   </div>
   {% if table %}
+  <div class="sheet-scroll">
   <table class="sheet">
     <thead>
       <tr>
@@ -19,7 +20,10 @@
         <th class="num">Total</th>
         <th class="num">Snitt</th>
         {% for golf_round in rounds %}
-        <th class="num">{{ golf_round.display_date }}</th>
+        <th class="num sheet__round">
+          <span class="sheet__day">{{ golf_round.short_weekday }}</span>
+          <span class="sheet__date">{{ golf_round.short_date }}</span>
+        </th>
         {% endfor %}
       </tr>
     </thead>
@@ -36,6 +40,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <p class="empty">Ingen scorer registrert ennå.</p>
   {% endif %}

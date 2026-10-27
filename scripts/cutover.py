@@ -48,6 +48,34 @@ def _counts(connection):
     return int(courses), int(tees)
 
 
+def _table_names(connection):
+    if connection.dialect.name == "sqlite":
+        rows = connection.execute(text(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+        ))
+        return {row[0] for row in rows}
+    rows = connection.execute(text(
+        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+    ))
+    return {row[0] for row in rows}
+
+
+def _already_applied(connection):
+    tables = _table_names(connection)
+    if "trips" in tables or "trip_players" in tables:
+        return True
+    if "players" not in tables:
+        return False
+    if connection.dialect.name == "sqlite":
+        rows = connection.execute(text("PRAGMA table_info(players)"))
+        return any(row[1] == "group_id" for row in rows)
+    rows = connection.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'players' AND column_name = 'group_id'"
+    ))
+    return rows.first() is not None
+
+
 def drop_old_tables(connection):
     for name in _OLD_TABLES:
         connection.execute(text(f"DROP TABLE IF EXISTS {name}"))
@@ -62,6 +90,10 @@ def run(database_url):
     connection = engine.connect()
     transaction = connection.begin()
     try:
+        if _already_applied(connection):
+            print("cutover already applied", file=sys.stderr)
+            transaction.rollback()
+            return 1
         before = _counts(connection)
         drop_old_tables(connection)
         create_schema(connection)
