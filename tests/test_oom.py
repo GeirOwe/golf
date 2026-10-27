@@ -164,6 +164,10 @@ def test_scores_feed_the_trip_table_and_ignore_other_rounds(tmp_path):
     oom = client.get(trip + "/oom")
     oom_body = oom.get_data(as_text=True)
     assert "<h1>Tabell OOM</h1>" in oom_body
+    assert "sheet__day" in oom_body
+    weekday = ("man", "tir", "ons", "tor", "fre", "lør", "søn")[date.today().weekday()]
+    assert f'class="sheet__day">{weekday}</span>' in oom_body
+    assert date.today().strftime("%d.%m") in oom_body
     assert "Total" in oom_body
     assert "Snitt" in oom_body
     assert "36.0" in oom_body
@@ -226,3 +230,5 @@ def test_scores_feed_the_trip_table_and_ignore_other_rounds(tmp_path):
     assert "42" not in only_oom
     assert "21.0" not in only_oom
     assert "22.0" in only_oom
+    odd = client.post(f"{trip}/rounds/{first}/scores", data={"score_²": "10"})
+    assert odd.status_code == 404

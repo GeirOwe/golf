@@ -1,3 +1,4 @@
+import math
 import secrets
 
 from datetime import datetime
@@ -17,6 +18,8 @@ _WEEKDAYS_NO = (
     "Lørdag",
     "Søndag",
 )
+
+_WEEKDAYS_SHORT = ("man", "tir", "ons", "tor", "fre", "lør", "søn")
 
 
 def _new_group_token():
@@ -60,6 +63,10 @@ class Player(db.Model):
         self._assign(name, handicap)
 
     def _assign(self, name, handicap):
+        if isinstance(handicap, bool) or not isinstance(handicap, (int, float)):
+            raise HandicapError("Skriv et handicap fra 0.0 til 54.0.")
+        if not math.isfinite(handicap) or handicap < 0:
+            raise HandicapError("Skriv et handicap fra 0.0 til 54.0.")
         if handicap > self.MAX_HANDICAP:
             raise HandicapError(
                 f"Handicap kan ikke være høyere enn {self.MAX_HANDICAP:.1f}."
@@ -139,6 +146,14 @@ class Round(db.Model):
     def display_date(self):
         return f"{_WEEKDAYS_NO[self.play_date.weekday()]} {self.play_date.strftime('%d.%m')}"
 
+    @property
+    def short_weekday(self):
+        return _WEEKDAYS_SHORT[self.play_date.weekday()]
+
+    @property
+    def short_date(self):
+        return self.play_date.strftime("%d.%m")
+
 
 class RoundScore(db.Model):
     """Model for storing player scores for each round."""
@@ -152,7 +167,10 @@ class RoundScore(db.Model):
 
     # Relationships
     round = db.relationship('Round', backref=db.backref('scores', lazy=True))
-    player = db.relationship('Player', backref=db.backref('scores', lazy=True))
+    player = db.relationship(
+        'Player',
+        backref=db.backref('scores', lazy=True, cascade='all, delete-orphan'),
+    )
 
 
 class GolfCourse(db.Model):

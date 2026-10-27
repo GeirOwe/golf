@@ -43,6 +43,55 @@ def _open_group(client, name):
     return opened.headers["Location"]
 
 
+def test_rejects_impossible_handicaps_and_long_names(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    path = _open_group(client, "Fjord")
+    low = client.post(path + "/players", data={"name": "Ada", "handicap": "-1"})
+    assert "0.0 til 54.0" in low.get_data(as_text=True)
+    missing = client.post(path + "/players", data={"name": "Ada", "handicap": "nan"})
+    assert "0.0 til 54.0" in missing.get_data(as_text=True)
+    long = client.post(path + "/players", data={"name": "A" * 81, "handicap": "10"})
+    assert "Navnet er for langt." in long.get_data(as_text=True)
+    assert "Ada" not in client.get(path).get_data(as_text=True)
+
+
+def test_deleting_a_player_removes_their_scores(tmp_path):
+    from datetime import date
+    from database import CourseTee, GolfCourse, Round, RoundScore, Trip, TripPlayer
+
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    path = _open_group(client, "Fjord")
+    client.post(path + "/players", data={"name": "Ada", "handicap": "12.4"})
+    with app.app_context():
+        player = Player.query.filter_by(name="Ada").one()
+        course = GolfCourse(name="Hills", facility="Lisboa")
+        tee = CourseTee(
+            course=course, name="Blå", gender="Herre",
+            par=72, course_rating=71.2, slope_rating=125,
+        )
+        trip = Trip(group_id=player.group_id, name="Høst", destination_name="Lisboa")
+        trip.memberships.append(TripPlayer(player_id=player.id, handicap=player.handicap))
+        db.session.add_all([course, tee, trip])
+        db.session.flush()
+        golf_round = Round(
+            trip_id=trip.id, course_id=course.id, tee_id=tee.id,
+            play_date=date.today(), tee_time="09:30", kind="oom",
+        )
+        db.session.add(golf_round)
+        db.session.flush()
+        db.session.add(RoundScore(round_id=golf_round.id, player_id=player.id, score=36))
+        db.session.commit()
+        player_id = player.id
+    removed = client.post(f"{path}/players/{player_id}/delete")
+    assert removed.status_code == 302
+    with app.app_context():
+        assert db.session.get(Player, player_id) is None
+        assert RoundScore.query.filter_by(player_id=player_id).count() == 0
+        assert TripPlayer.query.filter_by(player_id=player_id).count() == 0
+
+
 def test_handicap_limit_and_group_query(tmp_path):
     client = _client(tmp_path)
     client.post("/start", data={"secret": "verify-secret"})

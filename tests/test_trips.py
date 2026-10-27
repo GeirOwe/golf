@@ -80,6 +80,11 @@ def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
         data={"name": "Høst 2026", "destination_name": "Lisboa", "yr_location_id": "lisboa/1"},
     )
     assert "Ugyldig yr-id." in bad_yr.get_data(as_text=True)
+    odd = client.post(
+        lisboa + "/trips",
+        data={"name": "Merkelig", "destination_name": "Lisboa", "player_ids": "²"},
+    )
+    assert odd.status_code == 302
 
     created = client.post(
         lisboa + "/trips",

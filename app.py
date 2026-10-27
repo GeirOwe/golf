@@ -52,7 +52,7 @@ def _parse_tee_rows_from_form(form):
             return None, f"Ugyldig kjønn for tee «{name}». Velg Herre eller Dame."
         try:
             rows.append({
-                "tee_id": int(tee_id) if (tee_id or "").strip().isdigit() else None,
+                "tee_id": int(tee_id) if _digits((tee_id or "").strip()) else None,
                 "name": name,
                 "gender": gender,
                 "par": int(par),
@@ -271,13 +271,14 @@ def create_group():
     if not _organizer_open():
         return render_template("organizer.html", organizer=False, rejected=False)
     name = (request.form.get("name") or "").strip()
-    if not name:
+    error = _group_name_error(name)
+    if error:
         groups = Group.query.order_by(Group.id.asc()).all()
         return render_template(
             "organizer.html",
             organizer=True,
             groups=groups,
-            error="Skriv et gruppenavn.",
+            error=error,
         )
     group = Group(name=name, slug=_unique_slug(name))
     db.session.add(group)
@@ -292,9 +293,8 @@ def rename_group(token):
     name = group.name
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
-        if not name:
-            error = "Skriv et gruppenavn."
-        else:
+        error = _group_name_error(name)
+        if error is None:
             group.name = name
             group.slug = _unique_slug(name, group.id)
             db.session.commit()
@@ -323,11 +323,25 @@ def _posted_player():
     raw = (request.form.get("handicap") or "").strip()
     if not name:
         return name, raw, None, "Skriv et navn."
+    if len(name) > 80:
+        return name, raw, None, "Navnet er for langt."
     try:
         handicap = float(raw.replace(",", "."))
     except ValueError:
         return name, raw, None, "Skriv et handicap."
     return name, raw, handicap, None
+
+
+def _group_name_error(name):
+    if not name:
+        return "Skriv et gruppenavn."
+    if len(name) > 120:
+        return "Navnet er for langt."
+    return None
+
+
+def _digits(text):
+    return bool(text) and text.isascii() and text.isdigit()
 
 
 @app.route("/g/<token>")
@@ -442,7 +456,7 @@ def _posted_trip_fields():
 def _checked_players(group):
     selected = []
     for raw in request.form.getlist("player_ids"):
-        if str(raw).isdigit():
+        if _digits(str(raw)):
             selected.append(int(raw))
     if not selected:
         return []
@@ -750,7 +764,7 @@ def _parse_score(raw):
     text = (raw or "").strip()
     if text == "":
         return None
-    if not text.isdigit():
+    if not _digits(text):
         raise ValueError
     score = int(text)
     if score > 200:
@@ -765,7 +779,7 @@ def _posted_scores(trip):
         if not key.startswith("score_"):
             continue
         raw_id = key[len("score_"):]
-        if not raw_id.isdigit() or int(raw_id) not in member_ids:
+        if not _digits(raw_id) or int(raw_id) not in member_ids:
             abort(404)
         posted[int(raw_id)] = value
     parsed = {}
@@ -973,22 +987,18 @@ def list_golf_courses():
     return render_template("list_golf_courses.html", courses=courses)
 
 
-@app.route("/baner/mottatte-slag")
-def list_course_handicaps():
-    """Show received strokes per player for a selected course and tee."""
+def _strokes_page(players, group=None):
     courses = GolfCourse.get_all()
     course_id = request.args.get("course_id", type=int)
     tee_id = request.args.get("tee_id", type=int)
-
     selected_course = GolfCourse.get_by_id(course_id) if course_id else None
     selected_tee = None
     player_rows = None
-
     if selected_course and tee_id:
         selected_tee = CourseTee.query.filter_by(
             id=tee_id, course_id=selected_course.id
         ).first()
-        if selected_tee:
+        if selected_tee and players is not None:
             player_rows = [
                 {
                     "player": player,
@@ -999,9 +1009,8 @@ def list_course_handicaps():
                         selected_tee.par,
                     ),
                 }
-                for player in Player.get_all()
+                for player in players
             ]
-
     return render_template(
         "mottatte_slag.html",
         courses=courses,
@@ -1010,7 +1019,20 @@ def list_course_handicaps():
         player_rows=player_rows,
         course_id=course_id,
         tee_id=tee_id,
+        group=group,
     )
+
+
+@app.route("/baner/mottatte-slag")
+def list_course_handicaps():
+    """Courses stay shared. Player names stay inside a group."""
+    return _strokes_page(None)
+
+
+@app.route("/g/<token>/mottatte-slag")
+def group_strokes(token):
+    group = _group_or_404(token)
+    return _strokes_page(group.players, group)
 
 
 @app.route("/baner/ny", methods=["GET", "POST"])

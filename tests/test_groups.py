@@ -143,6 +143,43 @@ def test_rename_keeps_the_link_and_the_other_group(tmp_path):
     assert "<title>Kyst</title>" in kept.get_data(as_text=True)
 
 
+def test_long_group_name_is_rejected(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    rejected = client.post("/start/groups", data={"name": "A" * 121})
+    assert rejected.status_code == 200
+    assert "Navnet er for langt." in rejected.get_data(as_text=True)
+    assert "A" * 121 not in client.get("/start").get_data(as_text=True)
+
+
+def test_strokes_stay_inside_the_group(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    path = client.post("/start/groups", data={"name": "Fjord"}).headers["Location"]
+    other = client.post("/start/groups", data={"name": "Algarve"}).headers["Location"]
+    client.post(path + "/players", data={"name": "Ada", "handicap": "12.4"})
+    client.post(other + "/players", data={"name": "Bo", "handicap": "8"})
+    with app.app_context():
+        from database import CourseTee, GolfCourse
+        course = GolfCourse(name="Verify Hills", facility="Lisboa")
+        course.tees.append(CourseTee(
+            name="Blå", gender="Herre", par=72, course_rating=71.2, slope_rating=125,
+        ))
+        db.session.add(course)
+        db.session.commit()
+        course_id = course.id
+        tee_id = course.tees[0].id
+    query = f"?course_id={course_id}&tee_id={tee_id}"
+    public = client.get("/baner/mottatte-slag" + query).get_data(as_text=True)
+    assert "Ada" not in public
+    assert "Bo" not in public
+    assert "Åpne gruppen for å se spillerne." in public
+    own = client.get(path + "/mottatte-slag" + query).get_data(as_text=True)
+    assert "Ada" in own
+    assert "13" in own
+    assert "Bo" not in own
+
+
 def test_removed_routes_are_gone(tmp_path):
     client = _client(tmp_path)
     for path in ("/players", "/ai-story", "/flights", "/finale", "/admin"):

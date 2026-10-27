@@ -12,7 +12,7 @@
   <form class="form" method="post" action="{{ url_for('create_group') }}">
     <div class="field">
       <label for="name">Gruppenavn</label>
-      <input class="input" id="name" name="name" autocomplete="off" required>
+      <input class="input" id="name" name="name" maxlength="120" autocomplete="off" required>
       {% if error %}
       <p class="field__error">{{ error }}</p>
       {% endif %}

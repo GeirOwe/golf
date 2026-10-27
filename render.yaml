@@ -14,3 +14,8 @@ services:
       # A blueprint sync must not replace it with a Render Postgres URL.
       - key: DATABASE_URL
         sync: false
+      # Set both in the Render dashboard. A blueprint sync must not clear them.
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: ORGANIZER_SECRET
+        sync: false

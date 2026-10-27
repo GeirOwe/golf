@@ -7,6 +7,7 @@
   <div class="section__head section__head--row">
     <h1>{{ group.name }}</h1>
     <div class="section__actions">
+      <a class="btn btn--ghost" href="{{ url_for('group_strokes', token=group.slug) }}">Mottatte slag</a>
       <a class="btn btn--ghost" href="{{ url_for('rename_group', token=group.slug) }}">Endre navn</a>
       <a class="btn btn--primary" href="{{ url_for('new_player', token=group.slug) }}">Ny spiller</a>
     </div>
