@@ -8,8 +8,9 @@ from flask import Flask, abort, redirect, render_template, request, session, url
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from database import CourseTee, GolfCourse, Group, Player, Round, Trip, TripPlayer, db
+from database import CourseTee, GolfCourse, Group, Player, Round, RoundScore, Trip, TripPlayer, db
 from models import HandicapError, course_handicap
+from scoring import oom_table
 
 
 def ensure_course_tee_gender_column():
@@ -601,6 +602,139 @@ def edit_round(token, trip_id, round_id):
             return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
     return _render_round(
         group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, True,
+    )
+
+
+def _oom_rounds(trip):
+    return [golf_round for golf_round in trip.rounds if golf_round.kind == "oom"]
+
+
+def _scores_for(golf_round):
+    rows = RoundScore.query.filter_by(round_id=golf_round.id).all()
+    return {row.player_id: row.score for row in rows}
+
+
+def _trip_oom(trip):
+    rounds = _oom_rounds(trip)
+    found = [_scores_for(golf_round) for golf_round in rounds]
+    entries = []
+    for membership in trip.members():
+        entries.append({
+            "name": membership.player.name,
+            "scores": [scores.get(membership.player_id) for scores in found],
+        })
+    return rounds, oom_table(entries)
+
+
+def _parse_score(raw):
+    text = (raw or "").strip()
+    if text == "":
+        return None
+    if not text.isdigit():
+        raise ValueError
+    score = int(text)
+    if score > 200:
+        raise ValueError
+    return score
+
+
+def _posted_scores(trip):
+    member_ids = {membership.player_id for membership in trip.memberships}
+    posted = {}
+    for key, value in request.form.items():
+        if not key.startswith("score_"):
+            continue
+        raw_id = key[len("score_"):]
+        if not raw_id.isdigit() or int(raw_id) not in member_ids:
+            abort(404)
+        posted[int(raw_id)] = value
+    parsed = {}
+    for player_id, raw in posted.items():
+        try:
+            parsed[player_id] = _parse_score(raw)
+        except ValueError:
+            return None, "Skriv et heltall fra 0 til 200."
+    for membership in trip.memberships:
+        parsed.setdefault(membership.player_id, None)
+    return parsed, None
+
+
+def _write_scores(golf_round, parsed):
+    for player_id, score in parsed.items():
+        existing = RoundScore.query.filter_by(
+            round_id=golf_round.id,
+            player_id=player_id,
+        ).all()
+        if score is None:
+            for row in existing:
+                db.session.delete(row)
+            continue
+        if existing:
+            existing[0].score = score
+            for extra in existing[1:]:
+                db.session.delete(extra)
+        else:
+            db.session.add(RoundScore(
+                round_id=golf_round.id,
+                player_id=player_id,
+                score=score,
+            ))
+
+
+def _score_rows(trip, golf_round, values):
+    rows = []
+    for membership in trip.members():
+        player = membership.player
+        if values is None:
+            stored = _scores_for(golf_round).get(player.id)
+            value = "" if stored is None else str(stored)
+        else:
+            raw = values.get(player.id)
+            value = "" if raw is None else str(raw)
+        rows.append({"player": player, "value": value})
+    return rows
+
+
+@app.route(
+    "/g/<token>/trips/<int:trip_id>/rounds/<int:round_id>/scores",
+    methods=["GET", "POST"],
+)
+def edit_scores(token, trip_id, round_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    golf_round = _round_or_404(trip, round_id)
+    error = None
+    values = None
+    if request.method == "POST":
+        parsed, error = _posted_scores(trip)
+        if error is None:
+            _write_scores(golf_round, parsed)
+            db.session.commit()
+            return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
+        values = {}
+        for membership in trip.memberships:
+            values[membership.player_id] = request.form.get(f"score_{membership.player_id}")
+    return render_template(
+        "scores.html",
+        group=group,
+        trip=trip,
+        golf_round=golf_round,
+        rows=_score_rows(trip, golf_round, values),
+        error=error,
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/oom")
+def show_oom(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    rounds, table = _trip_oom(trip)
+    return render_template(
+        "oom.html",
+        group=group,
+        trip=trip,
+        rounds=rounds,
+        table=table,
     )
 
 
