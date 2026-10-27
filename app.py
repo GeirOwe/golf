@@ -2,6 +2,7 @@ import hmac
 import os
 import re
 from datetime import date, datetime
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, session, url_for
@@ -168,9 +169,36 @@ def health():
     return {"status": "ok"}, 200
 
 
-@app.route("/")
+def _group_link(raw):
+    text = (raw or "").strip()
+    if not text or text.startswith("//") or "\\" in text:
+        return None
+    if "://" in text:
+        path = urlparse(text).path or ""
+    else:
+        path = text.split("?", 1)[0].split("#", 1)[0]
+    if not path.startswith("/g/"):
+        return None
+    token = path[3:].split("/", 1)[0]
+    if not token or token in {".", ".."}:
+        return None
+    if ".." in path.split("/"):
+        return None
+    return path
+
+
+@app.route("/", methods=["GET", "POST"])
 def home():
-    return render_template("holding.html")
+    error = None
+    link = ""
+    if request.method == "POST":
+        link = (request.form.get("link") or "").strip()
+        target = _group_link(link)
+        if target is None:
+            error = "Lim inn lenken til gruppen."
+        else:
+            return redirect(target)
+    return render_template("gate.html", error=error, link=link)
 
 
 def _organizer_open():

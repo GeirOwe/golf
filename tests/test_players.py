@@ -184,7 +184,8 @@ def test_player_pages_stay_on_the_group(tmp_path):
 
     home = client.get("/")
     home_body = home.get_data(as_text=True)
-    assert "Fore. Out of bounds." in home_body
-    assert "<title>Fore</title>" in home_body
+    assert "Lenken til gruppen" in home_body
+    assert "Out of bounds" not in home_body
+    assert "<title>Lenken til gruppen</title>" in home_body
     assert "Ada" not in home_body
     assert "Lisboa" not in home_body

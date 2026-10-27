@@ -91,15 +91,16 @@ def test_wrong_secret_hides_group_names(tmp_path):
     assert "Algarve" not in client.get("/start").get_data(as_text=True)
 
 
-def test_home_stays_on_the_holding_page(tmp_path):
+def test_home_asks_for_the_group_link(tmp_path):
     client = _client(tmp_path)
     client.post("/start", data={"secret": "verify-secret"})
     client.post("/start/groups", data={"name": "Fjord"})
     home = client.get("/")
     body = home.get_data(as_text=True)
     assert home.status_code == 200
-    assert "Fore. Out of bounds." in body
-    assert "<title>Fore</title>" in body
+    assert "Lenken til gruppen" in body
+    assert "Out of bounds" not in body
+    assert "<title>Lenken til gruppen</title>" in body
     assert "Fjord" not in body
     assert "Lisboa Høst" not in body
 
