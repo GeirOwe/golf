@@ -70,7 +70,7 @@ def test_handicap_limit_and_group_query(tmp_path):
 def _chrome(body, name):
     assert f"<title>{name}</title>" in body
     assert f'<a class="brand" href="/">{name}</a>' in body
-    assert f"<p>{name}</p>" in body
+    assert "<p>Golf - et Owen Labs produkt</p>" in body
     assert "<title>Fore</title>" not in body
     assert '<a class="brand" href="/">Fore</a>' not in body
 
@@ -158,11 +158,13 @@ def test_player_pages_stay_on_the_group(tmp_path):
     assert "Handicap kan ikke være høyere enn 54.0." in kept.get_data(as_text=True)
     assert "18.2" in client.get(lisboa).get_data(as_text=True)
 
-    client.post(
+    ordered = client.post(
         lisboa + "/players",
         data={"name": "Bo", "handicap": "8"},
         follow_redirects=True,
-    )
+    ).get_data(as_text=True)
+    assert "entity-row__main--line" in ordered
+    assert ordered.index(">Bo<") < ordered.index(">Ada<") < ordered.index(">Cato<")
     bo_path = _edit_path(client, lisboa, "Bo")
     removed = client.post(bo_path + "/delete", follow_redirects=True)
     removed_body = removed.get_data(as_text=True)

@@ -2,20 +2,18 @@
 
 {% block title %}{{ trip.name }}{% endblock %}
 {% block brand %}{{ trip.name }}{% endblock %}
-{% block footer %}{{ trip.name }}{% endblock %}
-
 {% block content %}
 <section class="section">
-  <p class="crumbs"><a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a></p>
+  <p class="crumbs"><a href="{{ url_for('show_group', token=group.slug) }}">{{ group.name }}</a></p>
   <div class="section__head section__head--row">
     <div>
       <h1>{{ trip.name }}</h1>
       <p>{{ trip.destination_name }}</p>
     </div>
     <div class="section__actions">
-      <a class="btn btn--ghost" href="{{ url_for('show_finale', token=group.token, trip_id=trip.id) }}">Finale</a>
-      <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.token, trip_id=trip.id) }}">Tabell OOM</a>
-      <a class="btn btn--primary" href="{{ url_for('new_round', token=group.token, trip_id=trip.id) }}">Ny runde</a>
+      <a class="btn btn--ghost" href="{{ url_for('show_finale', token=group.slug, trip_id=trip.id) }}">Finale</a>
+      <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.slug, trip_id=trip.id) }}">Tabell OOM</a>
+      <a class="btn btn--primary" href="{{ url_for('new_round', token=group.slug, trip_id=trip.id) }}">Ny runde</a>
     </div>
   </div>
   {% if days_until is not none %}
@@ -50,14 +48,14 @@
     {% for golf_round in trip.rounds %}
     <li>
       <div class="entity-row">
-        <a class="entity-row__main" href="{{ url_for('edit_round', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">
+        <a class="entity-row__main" href="{{ url_for('edit_round', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">
           <span class="entity-row__name">{{ golf_round.course.name }}</span>
           <span class="entity-row__meta">{{ golf_round.display_date }} · {{ golf_round.tee.name }} · {{ golf_round.tee_time }}{% if golf_round.pick_up %} · {{ golf_round.pick_up }}{% endif %}{% if golf_round.kind == 'finale' %} · Finale{% endif %}</span>
         </a>
         {% if golf_round.kind == 'finale' %}
-        <a class="btn btn--ghost btn--small" href="{{ url_for('show_finale', token=group.token, trip_id=trip.id) }}">Score</a>
+        <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('show_finale', token=group.slug, trip_id=trip.id) }}">Score</a>
         {% else %}
-        <a class="btn btn--ghost btn--small" href="{{ url_for('edit_scores', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">Score</a>
+        <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('edit_scores', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">Score</a>
         {% endif %}
       </div>
     </li>
@@ -78,7 +76,7 @@
           <span class="entity-row__name">{{ membership.player.name }}</span>
           <span class="entity-row__meta">{{ '%.1f'|format(membership.handicap) }}</span>
         </span>
-        <form method="post" action="{{ url_for('leave_trip', token=group.token, trip_id=trip.id, player_id=membership.player.id) }}">
+        <form method="post" action="{{ url_for('leave_trip', token=group.slug, trip_id=trip.id, player_id=membership.player.id) }}">
           <button class="btn btn--danger btn--small" type="submit" aria-label="Fjern {{ membership.player.name }}">Fjern</button>
         </form>
       </div>
@@ -98,7 +96,7 @@
           <span class="entity-row__name">{{ player.name }}</span>
           <span class="entity-row__meta">{{ '%.1f'|format(player.handicap) }}</span>
         </span>
-        <form method="post" action="{{ url_for('join_trip', token=group.token, trip_id=trip.id, player_id=player.id) }}">
+        <form method="post" action="{{ url_for('join_trip', token=group.slug, trip_id=trip.id, player_id=player.id) }}">
           <button class="btn btn--ghost btn--small" type="submit" aria-label="Legg til {{ player.name }}">Legg til</button>
         </form>
       </div>
@@ -106,7 +104,7 @@
     {% endfor %}
   </ul>
   {% endif %}
-  <form class="form" method="post" action="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">
+  <form class="form" method="post" action="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">
     <div class="field">
       <label for="name">Navn</label>
       <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off">
@@ -130,7 +128,7 @@
       <button class="btn btn--primary" type="submit">Lagre</button>
     </div>
   </form>
-  <form method="post" action="{{ url_for('delete_trip', token=group.token, trip_id=trip.id) }}">
+  <form method="post" action="{{ url_for('delete_trip', token=group.slug, trip_id=trip.id) }}">
     <button class="btn btn--danger" type="submit">Slett tur</button>
   </form>
 </section>

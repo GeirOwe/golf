@@ -2,19 +2,17 @@
 
 {% block title %}{{ trip.name }}{% endblock %}
 {% block brand %}{{ trip.name }}{% endblock %}
-{% block footer %}{{ trip.name }}{% endblock %}
-
 {% block content %}
 <section class="section section--narrow">
   <p class="crumbs">
-    <a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a>
-    <a href="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">{{ trip.name }}</a>
+    <a href="{{ url_for('show_group', token=group.slug) }}">{{ group.name }}</a>
+    <a href="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">{{ trip.name }}</a>
   </p>
   <div class="section__head">
     <h1>Registrer score</h1>
     <p>{{ golf_round.course.name }} · {{ golf_round.display_date }} · {{ golf_round.tee_time }}</p>
   </div>
-  <form class="form" method="post" action="{{ url_for('edit_scores', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">
+  <form class="form" method="post" action="{{ url_for('edit_scores', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">
     {% for row in rows %}
     <div class="field">
       <label for="score-{{ row.player.id }}">{{ row.player.name }}</label>

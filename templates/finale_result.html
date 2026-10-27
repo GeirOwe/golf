@@ -2,13 +2,11 @@
 
 {% block title %}{{ trip.name }}{% endblock %}
 {% block brand %}{{ trip.name }}{% endblock %}
-{% block footer %}{{ trip.name }}{% endblock %}
-
 {% block content %}
 <section class="section">
   <p class="crumbs">
-    <a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a>
-    <a href="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">{{ trip.name }}</a>
+    <a href="{{ url_for('show_group', token=group.slug) }}">{{ group.name }}</a>
+    <a href="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">{{ trip.name }}</a>
   </p>
   <div class="section__head">
     <h1>Finaleresultat</h1>
@@ -27,7 +25,7 @@
     <tbody>
       {% for row in table %}
       <tr>
-        <td>{% if row.place is not none %}{{ row.place }}{% endif %}</td>
+        <td>{% if row.place == 1 %}<span class="medal" role="img" aria-label="1. plass">🥇</span>{% elif row.place == 2 %}<span class="medal" role="img" aria-label="2. plass">🥈</span>{% elif row.place == 3 %}<span class="medal" role="img" aria-label="3. plass">🥉</span>{% elif row.place is not none %}{{ row.place }}{% endif %}</td>
         <td>{{ row.name }}</td>
         <td class="num">{{ row.bonus }}</td>
         <td class="num">{% if row.score is not none %}{{ row.score }}{% endif %}</td>

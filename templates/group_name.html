@@ -2,15 +2,13 @@
 
 {% block title %}{{ group.name }}{% endblock %}
 {% block brand %}{{ group.name }}{% endblock %}
-{% block footer %}{{ group.name }}{% endblock %}
-
 {% block content %}
 <section class="section section--narrow">
-  <p class="crumbs"><a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a></p>
+  <p class="crumbs"><a href="{{ url_for('show_group', token=group.slug) }}">{{ group.name }}</a></p>
   <div class="section__head">
     <h1>Endre navn</h1>
   </div>
-  <form class="form" method="post" action="{{ url_for('rename_group', token=group.token) }}">
+  <form class="form" method="post" action="{{ url_for('rename_group', token=group.slug) }}">
     <div class="field">
       <label for="name">Gruppenavn</label>
       <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off" required>

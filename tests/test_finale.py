@@ -221,9 +221,10 @@ def test_finale_bonus_locks_and_the_finale_round_stays_out_of_oom(tmp_path):
         },
     )
     placed = client.get(trip + "/finale/resultat").get_data(as_text=True)
-    assert "1</td>\n        <td>Ada</td>" in placed
-    assert "1</td>\n        <td>Bo</td>" in placed
-    assert "2</td>\n        <td>Cia</td>" in placed
+    assert placed.count('aria-label="1. plass"') == 2
+    assert 'aria-label="2. plass"' in placed
+    assert "🥇" in placed
+    assert "🥈" in placed
 
     joined = client.post(f"{trip}/players/{players['Dag']}")
     assert joined.status_code == 302
