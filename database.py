@@ -104,6 +104,7 @@ class TripPlayer(db.Model):
     trip_id = db.Column(db.Integer, db.ForeignKey("trips.id"), nullable=False)
     player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
     handicap = db.Column(db.Float, nullable=False)
+    finale_bonus = db.Column(db.Integer)
     player = db.relationship(
         "Player",
         backref=db.backref("memberships", cascade="all, delete-orphan"),

@@ -42,6 +42,13 @@
       <input class="input" id="tee_time" name="tee_time" type="time" value="{{ tee_time }}">
     </div>
     <div class="field">
+      <label for="kind">Type</label>
+      <select class="input" id="kind" name="kind">
+        <option value="oom"{% if kind != 'finale' %} selected{% endif %}>OOM</option>
+        <option value="finale"{% if kind == 'finale' %} selected{% endif %}>Finale</option>
+      </select>
+    </div>
+    <div class="field">
       <label for="pick_up">Henting</label>
       <input class="input" id="pick_up" name="pick_up" maxlength="12" value="{{ pick_up }}" autocomplete="off">
       {% if error %}

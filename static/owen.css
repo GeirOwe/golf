@@ -218,6 +218,13 @@ a:hover {
   flex-wrap: wrap;
 }
 
+.section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
 .section__head h1,
 .section__head h2,
 .detail-head h1 {
