@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ trip.name }}{% endblock %}
+{% block brand %}{{ trip.name }}{% endblock %}
+{% block footer %}{{ trip.name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <p class="crumbs"><a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a></p>
+  <div class="section__head section__head--row">
+    <div>
+      <h1>{{ trip.name }}</h1>
+      <p>{{ trip.destination_name }}</p>
+    </div>
+    <a class="btn btn--primary" href="{{ url_for('new_round', token=group.token, trip_id=trip.id) }}">Ny runde</a>
+  </div>
+  {% if days_until is not none %}
+  <div class="id-row">
+    <div class="id-row__badge">
+      <span class="id-row__label">Dager</span>
+      <span class="id-row__value">{{ days_until }}</span>
+    </div>
+    <div class="id-row__main">
+      <span class="id-row__title">{{ days_until }} dager til tee-off</span>
+    </div>
+  </div>
+  {% endif %}
+  {% if trip.yr_location_id %}
+  <div class="forecast">
+    <a href="https://www.yr.no/nb/innhold/{{ trip.yr_location_id }}/meteogram.svg">
+      <img src="https://www.yr.no/nb/innhold/{{ trip.yr_location_id }}/meteogram.svg" alt="Værmelding">
+    </a>
+  </div>
+  {% endif %}
+  {% if trip.local_rules %}
+  <div class="section__head">
+    <h2>Lokale regler</h2>
+    <p>{{ trip.local_rules }}</p>
+  </div>
+  {% endif %}
+  <div class="section__head">
+    <h2>Runder</h2>
+  </div>
+  {% if trip.rounds %}
+  <ul class="entity-list">
+    {% for golf_round in trip.rounds %}
+    <li>
+      <a class="entity-row" href="{{ url_for('edit_round', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ golf_round.course.name }}</span>
+          <span class="entity-row__meta">{{ golf_round.display_date }} · {{ golf_round.tee.name }} · {{ golf_round.tee_time }}{% if golf_round.pick_up %} · {{ golf_round.pick_up }}{% endif %}</span>
+        </span>
+        <span class="entity-row__chevron" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">Ingen golfrunder registrert ennå.</p>
+  {% endif %}
+  <div class="section__head">
+    <h2>Spillere</h2>
+  </div>
+  {% if members %}
+  <ul class="entity-list">
+    {% for membership in members %}
+    <li>
+      <div class="entity-row">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ membership.player.name }}</span>
+          <span class="entity-row__meta">{{ '%.1f'|format(membership.handicap) }}</span>
+        </span>
+        <form method="post" action="{{ url_for('leave_trip', token=group.token, trip_id=trip.id, player_id=membership.player.id) }}">
+          <button class="btn btn--danger btn--small" type="submit" aria-label="Fjern {{ membership.player.name }}">Fjern</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if available %}
+  <div class="section__head">
+    <h2>Ikke med</h2>
+  </div>
+  <ul class="entity-list">
+    {% for player in available %}
+    <li>
+      <div class="entity-row">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ player.name }}</span>
+          <span class="entity-row__meta">{{ '%.1f'|format(player.handicap) }}</span>
+        </span>
+        <form method="post" action="{{ url_for('join_trip', token=group.token, trip_id=trip.id, player_id=player.id) }}">
+          <button class="btn btn--ghost btn--small" type="submit" aria-label="Legg til {{ player.name }}">Legg til</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <form class="form" method="post" action="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">
+    <div class="field">
+      <label for="name">Navn</label>
+      <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="destination_name">Destinasjon</label>
+      <input class="input" id="destination_name" name="destination_name" value="{{ destination_name }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="yr_location_id">Yr-id</label>
+      <input class="input" id="yr_location_id" name="yr_location_id" value="{{ yr_location_id }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="local_rules">Lokale regler</label>
+      <textarea class="input input--area" id="local_rules" name="local_rules">{{ local_rules }}</textarea>
+      {% if error %}
+      <p class="field__error">{{ error }}</p>
+      {% endif %}
+    </div>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">Lagre</button>
+    </div>
+  </form>
+  <form method="post" action="{{ url_for('delete_trip', token=group.token, trip_id=trip.id) }}">
+    <button class="btn btn--danger" type="submit">Slett tur</button>
+  </form>
+</section>
+{% endblock %}

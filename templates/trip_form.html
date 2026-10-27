@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }}{% endblock %}
+{% block brand %}{{ group.name }}{% endblock %}
+{% block footer %}{{ group.name }}{% endblock %}
+
+{% block content %}
+<section class="section section--narrow">
+  <p class="crumbs"><a href="{{ url_for('show_group', token=group.token) }}">{{ group.name }}</a></p>
+  <div class="section__head">
+    <h1>Ny tur</h1>
+  </div>
+  <form class="form" method="post" action="{{ url_for('new_trip', token=group.token) }}">
+    <div class="field">
+      <label for="name">Navn</label>
+      <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="destination_name">Destinasjon</label>
+      <input class="input" id="destination_name" name="destination_name" value="{{ destination_name }}" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="yr_location_id">Yr-id</label>
+      <input class="input" id="yr_location_id" name="yr_location_id" value="{{ yr_location_id }}" autocomplete="off">
+      <p class="field__hint">f.eks. 2-2267057</p>
+    </div>
+    <div class="field">
+      <label for="local_rules">Lokale regler</label>
+      <textarea class="input input--area" id="local_rules" name="local_rules">{{ local_rules }}</textarea>
+    </div>
+    <div class="field">
+      <p class="field-label">Spillere</p>
+      {% for player in group.players %}
+      <label class="check-row" for="player-{{ player.id }}">
+        <input id="player-{{ player.id }}" type="checkbox" name="player_ids" value="{{ player.id }}"{% if player.id in selected_ids %} checked{% endif %}>
+        {{ player.name }}
+        <span>{{ '%.1f'|format(player.handicap) }}</span>
+      </label>
+      {% endfor %}
+      {% if error %}
+      <p class="field__error">{{ error }}</p>
+      {% endif %}
+    </div>
+    <div class="form__actions">
+      <button class="btn btn--primary" type="submit">Lagre</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

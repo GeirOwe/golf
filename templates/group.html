@@ -25,6 +25,26 @@
     {% endfor %}
   </ul>
   {% endif %}
+  <div class="section__head section__head--row">
+    <h2>Turer</h2>
+    <a class="btn btn--ghost" href="{{ url_for('new_trip', token=group.token) }}">Ny tur</a>
+  </div>
+  {% if group.trips %}
+  <ul class="entity-list">
+    {% for trip in group.trips %}
+    <li>
+      <a class="entity-row" href="{{ url_for('show_trip', token=group.token, trip_id=trip.id) }}">
+        <span class="entity-row__main">
+          <span class="entity-row__name">{{ trip.name }}</span>
+          <span class="entity-row__meta">{{ trip.destination_name }}</span>
+        </span>
+        <span class="entity-row__chevron" aria-hidden="true">→</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
   <p class="empty">Ingen turer ennå.</p>
+  {% endif %}
 </section>
 {% endblock %}
