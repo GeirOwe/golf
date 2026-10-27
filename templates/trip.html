@@ -12,8 +12,11 @@
       <h1>{{ trip.name }}</h1>
       <p>{{ trip.destination_name }}</p>
     </div>
-    <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.token, trip_id=trip.id) }}">Tabell OOM</a>
-    <a class="btn btn--primary" href="{{ url_for('new_round', token=group.token, trip_id=trip.id) }}">Ny runde</a>
+    <div class="section__actions">
+      <a class="btn btn--ghost" href="{{ url_for('show_finale', token=group.token, trip_id=trip.id) }}">Finale</a>
+      <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.token, trip_id=trip.id) }}">Tabell OOM</a>
+      <a class="btn btn--primary" href="{{ url_for('new_round', token=group.token, trip_id=trip.id) }}">Ny runde</a>
+    </div>
   </div>
   {% if days_until is not none %}
   <div class="id-row">
@@ -49,9 +52,13 @@
       <div class="entity-row">
         <a class="entity-row__main" href="{{ url_for('edit_round', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">
           <span class="entity-row__name">{{ golf_round.course.name }}</span>
-          <span class="entity-row__meta">{{ golf_round.display_date }} · {{ golf_round.tee.name }} · {{ golf_round.tee_time }}{% if golf_round.pick_up %} · {{ golf_round.pick_up }}{% endif %}</span>
+          <span class="entity-row__meta">{{ golf_round.display_date }} · {{ golf_round.tee.name }} · {{ golf_round.tee_time }}{% if golf_round.pick_up %} · {{ golf_round.pick_up }}{% endif %}{% if golf_round.kind == 'finale' %} · Finale{% endif %}</span>
         </a>
+        {% if golf_round.kind == 'finale' %}
+        <a class="btn btn--ghost btn--small" href="{{ url_for('show_finale', token=group.token, trip_id=trip.id) }}">Score</a>
+        {% else %}
         <a class="btn btn--ghost btn--small" href="{{ url_for('edit_scores', token=group.token, trip_id=trip.id, round_id=golf_round.id) }}">Score</a>
+        {% endif %}
       </div>
     </li>
     {% endfor %}

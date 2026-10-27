@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from database import CourseTee, GolfCourse, Group, Player, Round, RoundScore, Trip, TripPlayer, db
 from models import HandicapError, course_handicap
-from scoring import oom_table
+from scoring import finale_table, oom_table
 
 
 def ensure_course_tee_gender_column():
@@ -465,10 +465,12 @@ def join_trip(token, trip_id, player_id):
     player = _player_or_404(group, player_id)
     already = TripPlayer.query.filter_by(trip_id=trip.id, player_id=player.id).one_or_none()
     if already is None:
+        locked = _finale_locked(trip)
         db.session.add(TripPlayer(
             trip_id=trip.id,
             player_id=player.id,
             handicap=player.handicap,
+            finale_bonus=0 if locked else None,
         ))
         db.session.commit()
     return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
@@ -530,7 +532,26 @@ def _posted_round():
     return course, tee, played, play_raw, tee_time, pick_up, error
 
 
-def _render_round(group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, editing):
+def _finale_round(trip):
+    for golf_round in trip.rounds:
+        if golf_round.kind == "finale":
+            return golf_round
+    return None
+
+
+def _chosen_kind(trip, current):
+    posted = (request.form.get("kind") or "").strip()
+    if posted == "":
+        return (current.kind if current is not None else "oom"), None
+    if posted not in ("oom", "finale"):
+        return "oom", "Velg OOM eller finale."
+    other = _finale_round(trip)
+    if posted == "finale" and other is not None and (current is None or other.id != current.id):
+        return posted, "Turen har allerede en finale."
+    return posted, None
+
+
+def _render_round(group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind, editing):
     return render_template(
         "round_form.html",
         group=group,
@@ -542,6 +563,7 @@ def _render_round(group, trip, error, course_id, tee_id, play_raw, tee_time, pic
         play_date=play_raw,
         tee_time=tee_time,
         pick_up=pick_up,
+        kind=kind,
         editing=editing,
     )
 
@@ -556,10 +578,14 @@ def new_round(token, trip_id):
     play_raw = ""
     tee_time = ""
     pick_up = ""
+    kind = "oom"
     if request.method == "POST":
         course, tee, played, play_raw, tee_time, pick_up, error = _posted_round()
         course_id = course.id if course is not None else request.form.get("course_id", type=int)
         tee_id = tee.id if tee is not None else request.form.get("tee_id", type=int)
+        kind, kind_error = _chosen_kind(trip, None)
+        if error is None:
+            error = kind_error
         if error is None:
             db.session.add(Round(
                 trip_id=trip.id,
@@ -568,12 +594,12 @@ def new_round(token, trip_id):
                 play_date=played,
                 tee_time=tee_time,
                 pick_up=pick_up or None,
-                kind="oom",
+                kind=kind,
             ))
             db.session.commit()
             return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
     return _render_round(
-        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, False,
+        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind or "oom", False,
     )
 
 
@@ -588,20 +614,25 @@ def edit_round(token, trip_id, round_id):
     play_raw = golf_round.play_date.isoformat()
     tee_time = golf_round.tee_time
     pick_up = golf_round.pick_up or ""
+    kind = golf_round.kind
     if request.method == "POST":
         course, tee, played, play_raw, tee_time, pick_up, error = _posted_round()
         course_id = course.id if course is not None else request.form.get("course_id", type=int)
         tee_id = tee.id if tee is not None else request.form.get("tee_id", type=int)
+        kind, kind_error = _chosen_kind(trip, golf_round)
+        if error is None:
+            error = kind_error
         if error is None:
             golf_round.course_id = course.id
             golf_round.tee_id = tee.id
             golf_round.play_date = played
             golf_round.tee_time = tee_time
             golf_round.pick_up = pick_up or None
+            golf_round.kind = kind
             db.session.commit()
             return redirect(url_for("show_trip", token=group.token, trip_id=trip.id))
     return _render_round(
-        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, True,
+        group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind or "oom", True,
     )
 
 
@@ -659,7 +690,41 @@ def _posted_scores(trip):
     return parsed, None
 
 
+def _finale_locked(trip):
+    return any(membership.finale_bonus is not None for membership in trip.memberships)
+
+
+def _live_bonus(trip):
+    _, table = _trip_oom(trip)
+    by_name = {row["name"]: row["bonus"] for row in table}
+    return {
+        membership.player_id: by_name.get(membership.player.name, 0)
+        for membership in trip.memberships
+    }
+
+
+def _lock_finale_bonus(trip):
+    if _finale_locked(trip):
+        return
+    bonuses = _live_bonus(trip)
+    for membership in trip.memberships:
+        membership.finale_bonus = bonuses.get(membership.player_id, 0)
+
+
+def _bonus_for(trip):
+    if _finale_locked(trip):
+        return {
+            membership.player_id: (
+                0 if membership.finale_bonus is None else membership.finale_bonus
+            )
+            for membership in trip.memberships
+        }
+    return _live_bonus(trip)
+
+
 def _write_scores(golf_round, parsed):
+    if golf_round.kind == "finale" and any(score is not None for score in parsed.values()):
+        _lock_finale_bonus(golf_round.trip)
     for player_id, score in parsed.items():
         existing = RoundScore.query.filter_by(
             round_id=golf_round.id,
@@ -721,6 +786,80 @@ def edit_scores(token, trip_id, round_id):
         golf_round=golf_round,
         rows=_score_rows(trip, golf_round, values),
         error=error,
+    )
+
+
+def _finale_view(trip, posted):
+    golf_round = _finale_round(trip)
+    if golf_round is None:
+        return None, [], []
+    stored = _scores_for(golf_round)
+    bonuses = _bonus_for(trip)
+    entries = []
+    fields = []
+    for membership in trip.members():
+        player = membership.player
+        if posted is None:
+            score = stored.get(player.id)
+            value = "" if score is None else str(score)
+        else:
+            raw = posted.get(player.id)
+            value = "" if raw is None else str(raw)
+            try:
+                score = _parse_score(raw)
+            except ValueError:
+                score = None
+        entries.append({
+            "name": player.name,
+            "score": score,
+            "bonus": bonuses.get(player.id, 0),
+        })
+        fields.append({"player": player, "value": value, "bonus": bonuses.get(player.id, 0)})
+    return golf_round, fields, finale_table(entries)
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/finale", methods=["GET", "POST"])
+def show_finale(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    golf_round = _finale_round(trip)
+    error = None
+    posted = None
+    if request.method == "POST":
+        if golf_round is None:
+            abort(404)
+        parsed, error = _posted_scores(trip)
+        if error is None:
+            _write_scores(golf_round, parsed)
+            db.session.commit()
+            return redirect(url_for("show_finale_result", token=group.token, trip_id=trip.id))
+        posted = {
+            membership.player_id: request.form.get(f"score_{membership.player_id}")
+            for membership in trip.memberships
+        }
+    golf_round, fields, table = _finale_view(trip, posted)
+    return render_template(
+        "finale.html",
+        group=group,
+        trip=trip,
+        golf_round=golf_round,
+        rows=fields,
+        table=table,
+        error=error,
+    )
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/finale/resultat")
+def show_finale_result(token, trip_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    golf_round, _, table = _finale_view(trip, None)
+    return render_template(
+        "finale_result.html",
+        group=group,
+        trip=trip,
+        golf_round=golf_round,
+        table=table,
     )
 
 
