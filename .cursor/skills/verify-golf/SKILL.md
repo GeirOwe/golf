@@ -1,6 +1,6 @@
 ---
 name: verify-golf
-description: Drive the local Lisboa Høst golf Flask app against a new disposable SQLite file and prove player, round, score, course-handicap, and finale behavior in the browser. Use when a change touches the Golf UI, routes, forms, or score calculations and needs a real user-path check before it is finished.
+description: Drive the local golf Flask app against a new disposable SQLite file and prove group, player, trip, round, score, course-handicap, and finale behavior in the browser. Use when a change touches the Golf UI, routes, forms, or score calculations and needs a real user-path check before it is finished.
 ---
 
 # Verify Golf
@@ -17,7 +17,7 @@ From the repo root:
 
 The helper creates `.cursor/skills/verify-golf/runs/<run-id>/`, starts `venv/bin/python -m flask --app app run` on `127.0.0.1` and an ephemeral port, and points `DATABASE_URL` at `runs/<run-id>/golf.db`. It sets `FLASK_SKIP_DOTENV=1` and `FLASK_ENV=production` so Flask does not load `.env`. It removes `XAI_API_KEY` and `OPENAI_API_KEY` from the child environment.
 
-Ready means the command printed `ready=1`, `GET /health` returned `{"status":"ok"}`, `GET /players` returned the Spillere page, and the new sqlite file contains `players`, `rounds`, `round_scores`, `finale_scores`, `golf_courses`, and `course_tees`. A health check alone is not ready: schema init runs on the first page request.
+Ready means the command printed `ready=1`, `GET /health` returned `{"status":"ok"}`, `GET /` contained `Lenken til gruppen`, and `GET /start` returned 200. The sqlite file then contains `groups`, `players`, `trips`, `trip_players`, `rounds`, `golf_courses`, and `course_tees`. A health check alone is not ready: schema init runs on the first page request. The child environment sets `ORGANIZER_SECRET=verify-secret` and `FLASK_SECRET_KEY=verify-flask-secret`.
 
 The repo venv must already exist (`venv/bin/python`, dependencies from `requirements.txt`). The SQLite branch in `app.py` `_engine_options` is what lets this empty file boot. PostgreSQL pool and libpq options stay in place for a Postgres `DATABASE_URL`.
 
@@ -37,8 +37,8 @@ Run this before driving, and again whenever the page looks like the wrong app. E
 - That pid is the listener on `127.0.0.1:<port>`.
 - The process has the scratch `golf.db` open, and its environment does not contain a Postgres or Neon URL.
 - `GET /health` is `{"status":"ok"}`.
-- `GET /` contains `Out of bounds` and `GET /players` contains `Spillere`.
-- The sqlite file is inside this run's directory and has the six application tables.
+- `GET /` contains `Lenken til gruppen` and `GET /start` returns 200.
+- The sqlite file is inside this run's directory and has the seven application tables.
 
 Anything else is not worth driving. Do not switch to another URL to "make the check pass".
 
@@ -50,7 +50,7 @@ The harness is the Cursor browser (`cursor-ide-browser`). There is no login. Ope
 2. `browser_tabs` with `action` `list`.
 3. `browser_navigate` with `url` set to that local base URL and `newTab` true. `browser_lock` with `action` `lock` on that tab. `browser_lock` with `action` `unlock` after the last browser action.
 4. `browser_snapshot`. Find the control by its role and accessible name in that snapshot. Call `browser_click`, `browser_fill`, or `browser_select_option` with the `ref` from that same snapshot. The snapshot returned inside a click result is still the old page: call `browser_snapshot` again before asserting the next heading. Refs do not survive that next snapshot.
-5. Text fields (`Spillernavn:`, `Bane`, `Banenavn`, `Anlegg`, `Henting`) accept `browser_fill`. A `type="number"` control is a spinbutton. `browser_fill` reports that ref as stale, and `browser_click` rejects it because it is an input rather than a button. Set it with `browser_cdp` method `Runtime.evaluate` and params like `{"expression":"<setter>","returnByValue":true}`. The setter for `#handicap` is:
+5. Text fields (`Gruppenavn`, `Navn`, `Destinasjon`, `Banenavn`, `Anlegg`, `Henting`) accept `browser_fill`. A `type="number"` control is a spinbutton. `browser_fill` reports that ref as stale, and `browser_click` rejects it because it is an input rather than a button. Set it with `browser_cdp` method `Runtime.evaluate` and params like `{"expression":"<setter>","returnByValue":true}`. The setter for `#handicap` is:
 
 ```javascript
 (() => {
@@ -63,33 +63,38 @@ The harness is the Cursor browser (`cursor-ide-browser`). There is no login. Ope
 })()
 ```
 
-For a number input with no id, find the row first: `[...document.querySelectorAll('tr')].find((tr) => tr.innerText.includes('Verify Ada')).querySelector('input')`. Snapshot again and require the spinbutton `value` to be the new number before clicking the save button. A Norwegian locale may render `12.4` as `12,4` in the screenshot; the DOM value and the saved row stay `12.4`.
+A score or finale field is a spinbutton named with the player. Set that `input[type=number]` the same way. Snapshot again and require the spinbutton `value` to be the new number before choosing `Lagre`. A Norwegian locale may render `12.4` as `12,4` in the screenshot; the DOM value stays `12.4`.
 
-6. Player, round, and score tables omit their cell text from `browser_snapshot`. Read `document.body.innerText` with `Runtime.evaluate` and keep the screenshot. `browser_take_screenshot` returns a `Saved to:` path outside the repo; copy that file into the artifact directory. `document.title` must end with `Lisboa Høst 🥳`.
+6. Score tables omit their cell text from `browser_snapshot`. Read `document.body.innerText` with `Runtime.evaluate` and keep the screenshot. `browser_take_screenshot` returns a `Saved to:` path outside the repo; copy that file into the artifact directory. `document.title` is the group name, the trip name, or the page name.
 
 Stable handles are the visible labels and link text, not coordinates:
 
 | Page | Path | Heading | Title |
 | --- | --- | --- | --- |
-| Home | `/` | `Fore. Out of bounds.` | `Hjem - Lisboa Høst 🥳` |
-| Players | `/players` | `Spillere` | `Spillerliste - Lisboa Høst 🥳` |
-| Register player | `/register` | `Registrer Ny Spiller` | `Registrer Spiller - Lisboa Høst 🥳` |
-| Update player | `/player/<id>/update` | `Oppdater Spiller` | `Oppdater Spiller - Lisboa Høst 🥳` |
-| Rounds | `/rounds` | `Golfrunder` | `Golfrunder - Lisboa Høst 🥳` |
-| New round | `/round/new` | `Ny Golfrunde` | `Registrer Golfrunde - Lisboa Høst 🥳` |
-| Scores for a round | `/round/<id>/scores` | `Registrer Score` | `Registrer Score - Lisboa Høst 🥳` |
-| Order of Merit | `/scores` | `Tabell OOM` | `Scoreoversikt - Lisboa Høst 🥳` |
-| Courses | `/baner` | `Baner` | `Baner - Lisboa Høst 🥳` |
-| New course | `/baner/ny` | `Registrer bane` | `Registrer bane - Lisboa Høst 🥳` |
-| Received strokes | `/baner/mottatte-slag` | `Mottatte slag` | `Mottatte slag - Lisboa Høst 🥳` |
-| Finale | `/finale` | `Finale` | `Finale - Lisboa Høst 🥳` |
-| Finale result | `/finale/resultat` | `Finaleresultat` | `Finaleresultat - Lisboa Høst 🥳` |
+| Home | `/` | `Lenken til gruppen` | `Lenken til gruppen` |
+| Organizer | `/start` | `Start` | `Start` |
+| Group | `/g/<slug>` | the group name | the group name |
+| New player | `/g/<slug>/players` | `Ny spiller` | the group name |
+| Edit player | `/g/<slug>/players/<id>` | the player name | the group name |
+| Rename group | `/g/<slug>/navn` | `Endre navn` | the group name |
+| New trip | `/g/<slug>/trips` | `Ny tur` | the group name |
+| Trip | `/g/<slug>/trips/<id>` | the trip name | the trip name |
+| New round | `.../rounds` | `Ny runde` | the trip name |
+| Scores | `.../rounds/<id>/scores` | `Registrer score` | the trip name |
+| Order of Merit | `.../oom` | `Tabell OOM` | the trip name |
+| Finale | `.../finale` | `Finale` | the trip name |
+| Finale result | `.../finale/resultat` | `Finaleresultat` | the trip name |
+| Courses | `/baner` | `Baner` | `Baner` |
+| New course | `/baner/ny` | `Registrer bane` | `Registrer bane` |
+| Course | `/baner/<id>` | the course name | the course name |
+| Public strokes | `/baner/mottatte-slag` | `Mottatte slag` | `Mottatte slag` |
+| Group strokes | `/g/<slug>/mottatte-slag` | `Mottatte slag` | `Mottatte slag` |
 
-`/` is a holding page and has no menu. Open `HCP oversikt` at `/players`, `Lokale regler` at `/local-rules`, `Mottatte slag` at `/baner/mottatte-slag`, `Tee times` at `/rounds`, `Spille oppsett` at `/flights`, `Tabell OOM` at `/scores`, and `Finale` at `/finale`. Course registration is not linked from `/`. Open `/baner`.
+`/` asks for the group link and does not list groups. Organizer work starts at `/start` with `Kode` `verify-secret`, unless an earlier cookie on `127.0.0.1` already signed that session in. Course registration is not linked from `/` or from the group. Open `/baner`.
 
-Do not open `/ai-story` (it calls an external model API), `/admin`, `/admin/db/reset`, `/scores/reset`, `/rounds/reset`, `/finale/reset`, or `/finale/reset/confirm`. Do not submit a delete or nullstill control. Cleanup removes the scratch directory; it does not delete rows through the app.
+Do not submit `Slett`, `Slett tur`, or `Fjern`. Cleanup removes the scratch directory; it does not delete rows through the app.
 
-The weather image on the home page is loaded from yr.no. A missing image is not an application failure.
+The weather image on a trip is loaded from yr.no when the trip has a Yr-id. A missing image is not an application failure.
 
 ## Evidence
 
@@ -99,7 +104,7 @@ For each driven feature, keep:
 
 - An accessibility snapshot taken while the user action is on screen, and another of the resulting page.
 - A screenshot of the resulting page.
-- `document.title`, which ends with `Lisboa Høst 🥳`.
+- `document.title`, which is the group name, the trip name, or the page name.
 - For a mutation, a second user-facing view (reopen the list or result page) and a read-only check:
 
 ```bash

@@ -1,7 +1,5 @@
-feature: finale
-entry: Finale on a trip, then Finaleresultat
-run_id: 20261027181426-26646
-url: http://127.0.0.1:61926
-isolated: sqlite
-
-Marking the scored round as finale removed its points from Tabell OOM. Before any finale score, Ada's bonus moved from 4 to 3 when Bo took the lead. With Ada alone on 36, her finale score of 30 locked bonus 4 and Finaleresultat showed total 34. Bo had no place until he received a score. A later OOM edit left Ada's bonus at 4. Ada and Bo then shared place 1 on total 34, and Cia was place 2 on 20. A second finale round was rejected. Høst 2027, with no finale round, showed Ingen finale ennå. The Algarve token on Lisboa's finale page returned Fore! The median of five finale-page loads was 0.0045 seconds.
+feature=finale
+run_id=20261027202749-45569
+url=http://127.0.0.1:54231
+entry=/g/lisboa/trips/1 Finale
+observed=A finale round showed Torsdag 22.10 · Gul · 10:00 · Finale. Finale form said Bonus 4 and the field was labelled Verify Ada. Lagre 30 opened Finaleresultat with medal aria-label 1. plass, bonus 4, score 30, total 34. Title Høst 2026. SQL finale_bonus=4 and a score of 30.

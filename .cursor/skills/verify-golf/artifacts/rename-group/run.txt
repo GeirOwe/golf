@@ -1,0 +1,5 @@
+feature=rename-group
+run_id=20261027202749-45569
+url=http://127.0.0.1:54231
+entry=/g/lisboa Endre navn
+observed=Lagre Kyst landed on /g/kyst, title Kyst, player and trip still listed. /g/lisboa is Fore! and says the page does not exist. SQL slug=kyst.

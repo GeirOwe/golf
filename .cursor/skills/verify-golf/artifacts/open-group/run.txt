@@ -1,0 +1,5 @@
+feature=open-group
+run_id=20261027202749-45569
+url=http://127.0.0.1:54231
+entry=/start then /
+observed=Opprett gruppe Lisboa landed on /g/lisboa, title Lisboa, empty trips sentence. Home heading Lenken til gruppen. Pasting /g/kyst and Åpne opened the renamed group.

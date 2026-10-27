@@ -1,38 +1,31 @@
 # Received strokes
 
-Received strokes lets a user pick a course and tee and see each player's WHS strokes. The course itself is registered on the baner pages, which are not linked from the home menu.
+A course is global. Player strokes are on the group page. The public strokes page asks you to open the group and does not list players.
 
 ## Sub-features
 
-- `strokes-empty` says no courses exist until one is registered.
-- `course-create` saves a course, facility, and one tee.
-- `strokes-show` shows the WHS stroke count for the selected tee.
+- `course-create` saves a course and one tee, and the title becomes the course name.
+- `strokes-group` shows that group's players and the WHS strokes for the chosen tee.
+- `strokes-public` shows the same tee and the sentence `Åpne gruppen for å se spillerne.`
 
 ## How to get to it (user POV)
 
-- On the home page, choose `Mottatte slag`.
-- Open `/baner`, then choose `Ny bane`. The home menu does not link to baner.
+- Open `/baner`, then `Ny bane`. `/baner` is not linked from home or from the group.
+- On the group page, choose `Mottatte slag`.
 
 ## Driving it with cursor-ide-browser
 
 Preconditions:
 
-- `verify-golf doctor` prints `ok=1` and `isolated=sqlite`.
-- The scratch database has no course named `Verify Hills` and no player named `Verify Ada`.
-- The browser tab URL is the `url` from that same launch.
+- The group has `Verify Ada` at handicap `18.2`.
+- Set the par, CR, and slope number fields with the number-input setter. Leave the other tee rows empty.
 
-- **See the empty strokes page.** From home, choose `Mottatte slag`. The heading is `Mottatte slag` and the page contains `Ingen baner registrert ennå.`
-- **Register the player.** Follow the create steps in [Register a player](./register-player.md) through the first save, with handicap `18`. The player list shows `Verify Ada` and `18.0`.
-- **Open course registration.** Navigate to `<url>/baner`. The heading is `Baner` and the page contains `Ingen baner registrert ennå.` Choose `Ny bane`. The heading is `Registrer bane`.
-- **Enter one tee.** Snapshot. `browser_fill` the textbox named `Banenavn` with `Verify Hills`. `browser_fill` the textbox named `Anlegg` with `Verify Park`. The tee table has four rows and only the first may be filled. `browser_fill` the first textbox whose placeholder is `f.eks. Gul` with `Gul`. Leave Kjønn as `Herre`. Set the first `input[name=tee_par]` to `72`, the first `input[name=tee_cr]` to `71.5`, and the first `input[name=tee_slope]` to `125` with the number-input setter in `SKILL.md` (`document.querySelector` for each name). Leave the other three tee rows untouched.
-- **Save the course.** Snapshot the form into `artifacts/mottatte-slag/course.aria.txt` and take `artifacts/mottatte-slag/course.png`. `browser_click` the button named `Lagre bane`. The heading is `Verify Hills` and the document title is `Verify Hills - Lisboa Høst 🥳`.
-- **Show strokes.** Go home and choose `Mottatte slag`. Snapshot. `browser_select_option` on the combobox named `Bane`, with value `Verify Hills (Verify Park)`. Snapshot again. The tee combobox is enabled. `browser_select_option` on the combobox named `Tee-sted`, with the option that starts with `Gul (Herre)`. `browser_click` the button named `Vis mottatte slag`. The table contains `Verify Ada`, `18.0`, and `19`.
-- **Proof.** Save the result snapshot to `artifacts/mottatte-slag/list.aria.txt` and the screenshot to `artifacts/mottatte-slag/list.png`. Run `verify-golf sql --run-id <run-id> "SELECT name, par, course_rating, slope_rating FROM course_tees"`. The row is `Gul`, `72`, `71.5`, `125`.
+- Action: save a course. On `/baner/ny`, fill `Banenavn` with `Verify Hills` and `Anlegg` with `Verify Park`. On the first tee row set the name to `Gul`, leave `Herre`, par `72`, CR `71.2`, and slope `125`. Choose `Lagre bane`. Result: the heading and `document.title` are `Verify Hills`.
+- Action: show the group's strokes. On `/g/<slug>/mottatte-slag`, choose `Bane` `Verify Hills (Verify Park)`, then the tee that starts `Gul (Herre)`, and choose `Vis mottatte slag`. Result: the table shows `Verify Ada`, `18.2`, and `19`.
+- Action: open `/baner/mottatte-slag?course_id=1&tee_id=1`. Result: the page says `Åpne gruppen for å se spillerne.` and does not show `Verify Ada`.
 
 ## Gotchas
 
-- `/baner` is a real entry point and it is absent from the home menu. Opening only `Mottatte slag` cannot create the course.
-- Empty extra tee rows are skipped. Typing into a later row without all of its numbers returns `Ugyldige tall` and does not save the course.
-- The tee combobox stays disabled until a course is selected, and its options are rebuilt in the page script. Snapshot after selecting the course before choosing the tee.
-- The expected `19` is `round(18 × (125 / 113) + (71.5 − 72))`. Assert the rendered integer.
-- Do not drive this against a database that already has courses. The empty-state step would fail, and that failure should be reported rather than skipped.
+- The tee select stays disabled until a course is chosen.
+- `19` is this tee and this handicap. A different CR changes the number.
+- Home has no `Mottatte slag` item.
