@@ -1,0 +1,7 @@
+feature: cutover
+entry: GET / asks for the group link, then opens that group
+run_id: 20261027182922-31313
+url: http://127.0.0.1:63424
+isolated: sqlite
+
+GET / showed Lenken til gruppen and did not show Out of bounds. After creating Lisboa Høst, the home page still omitted that name. Pasting the group URL opened the Lisboa Høst trip page. The median of five home loads was 0.0011 seconds. A separate seeded SQLite file kept 2 courses and 3 tees, dropped Gammel Ada, and finished in 0.663 seconds.

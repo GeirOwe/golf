@@ -172,7 +172,7 @@ def wait_until_usable(base_url: str, database_path: Path, timeout: float = 30) -
                 time.sleep(0.25)
                 continue
             status, body = http_get(base_url + "/")
-            if status != 200 or "Out of bounds" not in body:
+            if status != 200 or "Lenken til gruppen" not in body:
                 last = f"home {status} {body[:120]}"
                 time.sleep(0.25)
                 continue
@@ -368,8 +368,8 @@ def doctor(args: argparse.Namespace) -> None:
     if status != 200 or '"ok"' not in body:
         fail(f"/health returned {status}")
     status, body = http_get(base_url + "/")
-    if status != 200 or "Out of bounds" not in body:
-        fail("home page is missing Out of bounds")
+    if status != 200 or "Lenken til gruppen" not in body:
+        fail("home page is missing Lenken til gruppen")
     status, body = http_get(base_url + "/start")
     if status != 200:
         fail("organizer page is not usable")

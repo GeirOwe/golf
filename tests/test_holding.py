@@ -12,13 +12,13 @@ os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 from app import app
 
 
-def test_home_renders_holding_page_without_tables():
+def test_home_asks_for_the_group_link_without_tables():
     response = app.test_client().get("/")
     assert response.status_code == 200
     body = response.get_data(as_text=True)
-    assert "Fore. Out of bounds." in body
-    assert "En omskriving pågår." in body
-    assert "<title>Fore</title>" in body
+    assert "Lenken til gruppen" in body
+    assert "Out of bounds" not in body
+    assert "<title>Lenken til gruppen</title>" in body
     assert '<a class="brand" href="/">Fore</a>' in body
     assert "Lisboa Høst" not in body
     if _DB_PATH.stat().st_size == 0:
