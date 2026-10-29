@@ -1,6 +1,6 @@
-# Lisboa Høst
+# Golf trip
 
-Flask-app for golfturneringen Lisboa Høst. En arrangør oppretter grupper. Hver gruppe har spillere, turer, runder og finale. Baner er felles for alle.
+Flask-app for golfturer. En arrangør oppretter grupper. Hver gruppe har spillere, turer, runder og finale. Baner er felles for alle.
 
 Kjører på [Render](https://golf-app-w497.onrender.com).
 
