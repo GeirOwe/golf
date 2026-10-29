@@ -8,9 +8,20 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 from flask import Flask, abort, redirect, render_template, request, session, url_for
 from sqlalchemy import inspect, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from database import CourseTee, GolfCourse, Group, Player, Round, RoundScore, Trip, TripPlayer, db
+from database import (
+    CourseTee,
+    GolfCourse,
+    Group,
+    GroupAlias,
+    Player,
+    Round,
+    RoundScore,
+    Trip,
+    TripPlayer,
+    db,
+)
 from models import HandicapError, course_handicap
 from scoring import finale_table, oom_table
 
@@ -128,6 +139,16 @@ def _engine_options(database_url):
     return options
 
 
+def _session_cookie_secure(database_url):
+    """Secure the session only when the app is on the hosted Postgres site.
+
+    Local checks set FLASK_ENV=production and serve http://127.0.0.1. A Secure
+    cookie there would drop the organizer session, so production mode alone
+    does not turn it on.
+    """
+    return (database_url or "").startswith("postgres")
+
+
 def create_app():
     app = Flask(__name__)
     if os.environ.get('FLASK_ENV') != 'production':
@@ -136,6 +157,7 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url or None
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = _engine_options(database_url)
+    app.config["SESSION_COOKIE_SECURE"] = _session_cookie_secure(database_url)
     db.init_app(app)
     secret_key = os.environ.get("FLASK_SECRET_KEY")
     if secret_key:
@@ -154,16 +176,49 @@ def _slugify(name):
     return text[:48] or "gruppe"
 
 
+def _slug_taken(candidate, group_id=None):
+    existing = Group.query.filter_by(slug=candidate).one_or_none()
+    if existing is not None and existing.id != group_id:
+        return True
+    alias = GroupAlias.query.filter_by(slug=candidate).one_or_none()
+    return alias is not None and alias.group_id != group_id
+
+
 def _unique_slug(name, group_id=None):
     base = _slugify(name)
     candidate = base
     number = 2
-    while True:
-        existing = Group.query.filter_by(slug=candidate).one_or_none()
-        if existing is None or existing.id == group_id:
-            return candidate
+    while _slug_taken(candidate, group_id):
         candidate = f"{base}-{number}"
         number += 1
+    return candidate
+
+
+def _remember_slug(group, name):
+    """Point the group at the new short address and keep the previous one."""
+    new = _unique_slug(name, group.id)
+    old = group.slug
+    if old == new:
+        return
+    released = GroupAlias.query.filter_by(slug=new, group_id=group.id).one_or_none()
+    if released is not None:
+        db.session.delete(released)
+        db.session.flush()
+    if old:
+        db.session.add(GroupAlias(slug=old, group_id=group.id))
+    group.slug = new
+
+
+def _commit_slug_attempt(prepare):
+    """Save a slug change, and try a fresh slug if another request took it."""
+    for _attempt in range(5):
+        prepare()
+        try:
+            db.session.commit()
+            return True
+        except IntegrityError:
+            db.session.rollback()
+    return False
 
 
 def ensure_group_slug_column():
@@ -185,11 +240,51 @@ def ensure_group_slug_column():
     db.session.commit()
 
 
+def ensure_finale_bonus_column():
+    """Add trip_players.finale_bonus for databases created before the finale lock."""
+    bind = db.session.get_bind()
+    if "trip_players" not in inspect(bind).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(bind).get_columns("trip_players")}
+    if "finale_bonus" in columns:
+        return
+    db.session.execute(text("ALTER TABLE trip_players ADD COLUMN finale_bonus INTEGER"))
+    db.session.commit()
+
+
+def ensure_round_score_unique():
+    """One score row per player per round. Drop older duplicates first."""
+    bind = db.session.get_bind()
+    if "round_scores" not in inspect(bind).get_table_names():
+        return
+    indexes = {index["name"] for index in inspect(bind).get_indexes("round_scores")}
+    uniques = {
+        constraint["name"]
+        for constraint in inspect(bind).get_unique_constraints("round_scores")
+    }
+    if "uq_round_player_score" in indexes or "uq_round_player_score" in uniques:
+        return
+    db.session.execute(text(
+        "DELETE FROM round_scores WHERE EXISTS ("
+        "SELECT 1 FROM round_scores AS newer "
+        "WHERE newer.round_id = round_scores.round_id "
+        "AND newer.player_id = round_scores.player_id "
+        "AND newer.id > round_scores.id)"
+    ))
+    db.session.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_round_player_score "
+        "ON round_scores (round_id, player_id)"
+    ))
+    db.session.commit()
+
+
 def _init_schema():
     """Create tables and apply lightweight column migrations."""
     db.create_all()
     ensure_course_tee_gender_column()
     ensure_group_slug_column()
+    ensure_finale_bonus_column()
+    ensure_round_score_unique()
 
 
 @app.before_request
@@ -280,10 +375,16 @@ def create_group():
             groups=groups,
             error=error,
         )
-    group = Group(name=name, slug=_unique_slug(name))
-    db.session.add(group)
-    db.session.commit()
-    return redirect(url_for("show_group", token=group.slug))
+    saved = {}
+
+    def prepare():
+        group = Group(name=name, slug=_unique_slug(name))
+        db.session.add(group)
+        saved["group"] = group
+
+    if not _commit_slug_attempt(prepare):
+        abort(500)
+    return redirect(url_for("show_group", token=saved["group"].slug))
 
 
 @app.route("/g/<token>/navn", methods=["GET", "POST"])
@@ -295,15 +396,27 @@ def rename_group(token):
         name = (request.form.get("name") or "").strip()
         error = _group_name_error(name)
         if error is None:
-            group.name = name
-            group.slug = _unique_slug(name, group.id)
-            db.session.commit()
-            return redirect(url_for("show_group", token=group.slug))
+            group_id = group.id
+            saved = {}
+
+            def prepare():
+                current = Group.query.filter_by(id=group_id).one()
+                current.name = name
+                _remember_slug(current, name)
+                saved["group"] = current
+
+            if not _commit_slug_attempt(prepare):
+                abort(500)
+            return redirect(url_for("show_group", token=saved["group"].slug))
     return render_template("group_name.html", group=group, error=error, name=name)
 
 
 def _group_or_404(token):
     group = Group.query.filter_by(slug=token).one_or_none()
+    if group is None:
+        alias = GroupAlias.query.filter_by(slug=token).one_or_none()
+        if alias is not None:
+            group = Group.query.filter_by(id=alias.group_id).one_or_none()
     if group is None:
         group = Group.query.filter_by(token=token).one_or_none()
     if group is None:
@@ -347,6 +460,8 @@ def _digits(text):
 @app.route("/g/<token>")
 def show_group(token):
     group = _group_or_404(token)
+    if token != group.slug and token != group.token:
+        return redirect(url_for("show_group", token=group.slug))
     return render_template("group.html", group=group)
 
 
@@ -591,7 +706,14 @@ def leave_trip(token, trip_id, player_id):
     membership = TripPlayer.query.filter_by(trip_id=trip.id, player_id=player.id).one_or_none()
     if membership is None:
         abort(404)
+    round_ids = [golf_round.id for golf_round in trip.rounds]
+    if round_ids:
+        RoundScore.query.filter(
+            RoundScore.player_id == player.id,
+            RoundScore.round_id.in_(round_ids),
+        ).delete(synchronize_session=False)
     db.session.delete(membership)
+    _sync_finale_lock(trip)
     db.session.commit()
     return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
 
@@ -738,6 +860,7 @@ def edit_round(token, trip_id, round_id):
             golf_round.tee_time = tee_time
             golf_round.pick_up = pick_up or None
             golf_round.kind = kind
+            _sync_finale_lock(trip)
             db.session.commit()
             return redirect(url_for("show_trip", token=group.slug, trip_id=trip.id))
     return _render_round(
@@ -761,6 +884,7 @@ def _trip_oom(trip):
     for membership in trip.members():
         entries.append({
             "name": membership.player.name,
+            "player_id": membership.player_id,
             "scores": [scores.get(membership.player_id) for scores in found],
         })
     return rounds, oom_table(entries)
@@ -805,9 +929,13 @@ def _finale_locked(trip):
 
 def _live_bonus(trip):
     _, table = _trip_oom(trip)
-    by_name = {row["name"]: row["bonus"] for row in table}
+    by_id = {
+        row["player_id"]: row["bonus"]
+        for row in table
+        if row.get("player_id") is not None
+    }
     return {
-        membership.player_id: by_name.get(membership.player.name, 0)
+        membership.player_id: by_id.get(membership.player_id, 0)
         for membership in trip.memberships
     }
 
@@ -818,6 +946,27 @@ def _lock_finale_bonus(trip):
     bonuses = _live_bonus(trip)
     for membership in trip.memberships:
         membership.finale_bonus = bonuses.get(membership.player_id, 0)
+
+
+def _unlock_finale_bonus(trip):
+    for membership in trip.memberships:
+        membership.finale_bonus = None
+
+
+def _round_has_scores(golf_round):
+    return db.session.query(RoundScore.id).filter(
+        RoundScore.round_id == golf_round.id,
+        RoundScore.score.isnot(None),
+    ).first() is not None
+
+
+def _sync_finale_lock(trip):
+    """Lock when the finale round has a score, and unlock when it does not."""
+    golf_round = _finale_round(trip)
+    if golf_round is not None and _round_has_scores(golf_round):
+        _lock_finale_bonus(trip)
+    else:
+        _unlock_finale_bonus(trip)
 
 
 def _bonus_for(trip):
@@ -832,8 +981,6 @@ def _bonus_for(trip):
 
 
 def _write_scores(golf_round, parsed):
-    if golf_round.kind == "finale" and any(score is not None for score in parsed.values()):
-        _lock_finale_bonus(golf_round.trip)
     for player_id, score in parsed.items():
         existing = RoundScore.query.filter_by(
             round_id=golf_round.id,
@@ -853,6 +1000,8 @@ def _write_scores(golf_round, parsed):
                 player_id=player_id,
                 score=score,
             ))
+    if golf_round.kind == "finale":
+        _sync_finale_lock(golf_round.trip)
 
 
 def _score_rows(trip, golf_round, values):

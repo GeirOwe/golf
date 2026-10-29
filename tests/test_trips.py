@@ -13,7 +13,7 @@ _DB_PATH = Path(tempfile.mkdtemp(prefix="golf-trips-")) / "golf.db"
 os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 
 from app import app, db
-from database import CourseTee, GolfCourse, Player, Round, Trip, TripPlayer
+from database import CourseTee, GolfCourse, Player, Round, RoundScore, Trip, TripPlayer
 
 
 def _use_database(path):
@@ -287,3 +287,71 @@ def test_trip_stores_its_own_handicap_snapshot(tmp_path):
         assert db.session.get(Player, players["Ada"].id) is None
         assert TripPlayer.query.filter_by(player_id=players["Ada"].id).one_or_none() is None
         assert Trip.query.filter_by(name="Høst 2026").one() is not None
+
+
+def test_leaving_a_trip_removes_that_players_scores(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    lisboa = _open_group(client, "Lisboa")
+    for name, handicap in (("Ada", "12.4"), ("Bo", "8")):
+        assert client.post(
+            lisboa + "/players",
+            data={"name": name, "handicap": handicap},
+        ).status_code == 302
+    players = _players(["Ada", "Bo"])
+    trip = client.post(
+        lisboa + "/trips",
+        data={
+            "name": "Høst 2026",
+            "destination_name": "Lisboa",
+            "player_ids": [players["Ada"].id, players["Bo"].id],
+        },
+    ).headers["Location"]
+    with app.app_context():
+        course = GolfCourse(name="Verify Hills", facility="Lisboa")
+        db.session.add(course)
+        db.session.flush()
+        tee = CourseTee(
+            course_id=course.id,
+            name="Blå",
+            gender="Herre",
+            par=72,
+            course_rating=71.2,
+            slope_rating=125,
+        )
+        db.session.add(tee)
+        db.session.commit()
+        course_id = course.id
+        tee_id = tee.id
+    played = date.today().isoformat()
+    assert client.post(
+        trip + "/rounds",
+        data={
+            "course_id": course_id,
+            "tee_id": tee_id,
+            "play_date": played,
+            "tee_time": "09:30",
+            "pick_up": "Sandvika",
+        },
+    ).status_code == 302
+    with app.app_context():
+        round_id = Round.query.one().id
+    client.post(
+        f"{trip}/rounds/{round_id}/scores",
+        data={
+            f"score_{players['Ada'].id}": "36",
+            f"score_{players['Bo'].id}": "30",
+        },
+    )
+    left = client.post(f"{trip}/players/{players['Bo'].id}/delete")
+    assert left.status_code == 302
+    assert "30" not in client.get(trip + "/oom").get_data(as_text=True)
+    assert "36" in client.get(trip + "/oom").get_data(as_text=True)
+    with app.app_context():
+        assert RoundScore.query.filter_by(player_id=players["Bo"].id).count() == 0
+        assert RoundScore.query.filter_by(player_id=players["Ada"].id).one().score == 36
+        assert db.session.get(Player, players["Bo"].id) is not None
+    client.post(f"{trip}/players/{players['Bo'].id}")
+    rejoined = client.get(trip + "/oom").get_data(as_text=True)
+    assert "30" not in rejoined
+    assert "36" in rejoined

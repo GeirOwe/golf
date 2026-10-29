@@ -241,3 +241,100 @@ def test_finale_bonus_locks_and_the_finale_round_stays_out_of_oom(tmp_path):
 
     other = f"{algarve}/trips/{trip.rsplit('/', 1)[-1]}/finale"
     assert client.post(other, data={f"score_{players['Ada']}": "30"}).status_code == 404
+
+
+def test_finale_lock_follows_kind_changes_and_cleared_scores(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    lisboa = _open_group(client, "Lisboa")
+    for name, handicap in (("Ada", "12.4"), ("Bo", "8")):
+        assert client.post(
+            lisboa + "/players",
+            data={"name": name, "handicap": handicap},
+        ).status_code == 302
+    with app.app_context():
+        players = {player.name: player.id for player in Player.query.all()}
+    trip = client.post(
+        lisboa + "/trips",
+        data={
+            "name": "Høst 2026",
+            "destination_name": "Lisboa",
+            "player_ids": [players["Ada"], players["Bo"]],
+        },
+    ).headers["Location"]
+    course_id, tee_id = _course()
+    assert client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "oom")).status_code == 302
+    with app.app_context():
+        round_id = Round.query.one().id
+    scores = {f"score_{players['Ada']}": "36", f"score_{players['Bo']}": "10"}
+    client.post(f"{trip}/rounds/{round_id}/scores", data=scores)
+    client.post(f"{trip}/rounds/{round_id}", data=_round_fields(course_id, tee_id, "finale"))
+    with app.app_context():
+        locked = {row.player.name: row.finale_bonus for row in TripPlayer.query.all()}
+    assert locked == {"Ada": 0, "Bo": 0}
+
+    client.post(f"{trip}/rounds/{round_id}", data=_round_fields(course_id, tee_id, "oom"))
+    with app.app_context():
+        assert all(row.finale_bonus is None for row in TripPlayer.query.all())
+
+    finale = client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "finale"))
+    assert finale.status_code == 302
+    client.post(
+        trip + "/finale",
+        data={f"score_{players['Ada']}": "30", f"score_{players['Bo']}": ""},
+    )
+    with app.app_context():
+        held = {row.player.name: row.finale_bonus for row in TripPlayer.query.all()}
+    assert held["Ada"] == 4
+    client.post(
+        f"{trip}/rounds/{round_id}/scores",
+        data={f"score_{players['Ada']}": "10", f"score_{players['Bo']}": "40"},
+    )
+    client.post(
+        trip + "/finale",
+        data={f"score_{players['Ada']}": "", f"score_{players['Bo']}": ""},
+    )
+    with app.app_context():
+        assert all(row.finale_bonus is None for row in TripPlayer.query.all())
+    live = client.get(trip + "/finale").get_data(as_text=True)
+    ada_at = live.index(">Ada</label>")
+    bo_at = live.index(">Bo</label>")
+    assert "Bonus 3" in live[ada_at:bo_at]
+    assert "Bonus 4" in live[bo_at:]
+    assert ">Finale</a>" in client.get(trip).get_data(as_text=True)
+
+
+def test_live_bonus_follows_player_id_when_names_match(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    lisboa = _open_group(client, "Lisboa")
+    for handicap in ("12.4", "8"):
+        assert client.post(
+            lisboa + "/players",
+            data={"name": "Ada", "handicap": handicap},
+        ).status_code == 302
+    with app.app_context():
+        players = Player.query.order_by(Player.id.asc()).all()
+        low_id, high_id = players[0].id, players[1].id
+    trip = client.post(
+        lisboa + "/trips",
+        data={
+            "name": "Høst 2026",
+            "destination_name": "Lisboa",
+            "player_ids": [low_id, high_id],
+        },
+    ).headers["Location"]
+    course_id, tee_id = _course()
+    client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "oom"))
+    with app.app_context():
+        round_id = Round.query.one().id
+    client.post(
+        f"{trip}/rounds/{round_id}/scores",
+        data={f"score_{low_id}": "10", f"score_{high_id}": "40"},
+    )
+    with app.app_context():
+        from app import _live_bonus
+        from database import Trip
+        bonuses = _live_bonus(Trip.query.one())
+    assert bonuses[high_id] == 4
+    assert bonuses[low_id] == 3

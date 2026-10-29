@@ -3,3 +3,5 @@ __pycache__/
 venv/
 .env
 golf/
+.DS_Store
+temp-req.txt

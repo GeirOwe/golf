@@ -232,3 +232,54 @@ def test_scores_feed_the_trip_table_and_ignore_other_rounds(tmp_path):
     assert "22.0" in only_oom
     odd = client.post(f"{trip}/rounds/{first}/scores", data={"score_²": "10"})
     assert odd.status_code == 404
+
+
+def test_duplicate_round_scores_collapse_before_the_unique_index(tmp_path):
+    from sqlalchemy import inspect, text
+    from sqlalchemy.exc import IntegrityError
+
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    client.post("/start/groups", data={"name": "Fjord"})
+    with app.app_context():
+        db.session.execute(text("ALTER TABLE round_scores RENAME TO round_scores_old"))
+        db.session.execute(text(
+            "CREATE TABLE round_scores ("
+            "id INTEGER NOT NULL PRIMARY KEY, "
+            "round_id INTEGER NOT NULL, "
+            "player_id INTEGER NOT NULL, "
+            "score INTEGER, "
+            "created_at DATETIME)"
+        ))
+        db.session.execute(text(
+            "INSERT INTO round_scores (id, round_id, player_id, score) "
+            "VALUES (1, 1, 1, 10), (2, 1, 1, 36)"
+        ))
+        db.session.execute(text("DROP TABLE round_scores_old"))
+        db.session.commit()
+        app._schema_ready = False
+    assert client.get("/start").status_code == 200
+    with app.app_context():
+        rows = db.session.execute(text(
+            "SELECT score FROM round_scores ORDER BY id"
+        )).all()
+        names = {
+            constraint["name"]
+            for constraint in inspect(db.session.get_bind()).get_unique_constraints("round_scores")
+        }
+        names.update(
+            index["name"]
+            for index in inspect(db.session.get_bind()).get_indexes("round_scores")
+        )
+        failed = False
+        try:
+            db.session.execute(text(
+                "INSERT INTO round_scores (round_id, player_id, score) VALUES (1, 1, 5)"
+            ))
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            failed = True
+    assert rows == [(36,)]
+    assert failed is True
+    assert "uq_round_player_score" in names
