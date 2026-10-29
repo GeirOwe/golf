@@ -18,6 +18,7 @@ def oom_table(entries):
         total = sum(counted)
         ranked.append({
             "name": entry["name"],
+            "player_id": entry.get("player_id"),
             "scores": list(entry["scores"]),
             "total": total,
             "snitt": round(total / len(counted), 1),

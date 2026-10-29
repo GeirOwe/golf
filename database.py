@@ -46,6 +46,15 @@ class Group(db.Model):
     )
 
 
+class GroupAlias(db.Model):
+    """Previous short address. A rename keeps the old link working."""
+    __tablename__ = "group_aliases"
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(64), unique=True, nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey("groups.id"), nullable=False)
+
+
 class Player(db.Model):
     __tablename__ = "players"
     MAX_HANDICAP = 54.0
@@ -158,7 +167,10 @@ class Round(db.Model):
 class RoundScore(db.Model):
     """Model for storing player scores for each round."""
     __tablename__ = 'round_scores'
-    
+    __table_args__ = (
+        UniqueConstraint("round_id", "player_id", name="uq_round_player_score"),
+    )
+
     id = db.Column(db.Integer, primary_key=True)
     round_id = db.Column(db.Integer, db.ForeignKey('rounds.id'), nullable=False)
     player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)

@@ -125,7 +125,12 @@ def test_rename_keeps_the_link_and_the_other_group(tmp_path):
     renamed = client.post(path + "/navn", data={"name": "  Kyst  "})
     assert renamed.status_code == 302
     assert renamed.headers["Location"] == "/g/kyst"
-    assert client.get(path).status_code == 404
+    old = client.get(path)
+    assert old.status_code == 302
+    assert old.headers["Location"] == "/g/kyst"
+    followed = client.get(path, follow_redirects=True)
+    assert "<title>Kyst</title>" in followed.get_data(as_text=True)
+    assert "<h1>Endre navn</h1>" in client.get(path + "/navn").get_data(as_text=True)
     body = client.get("/g/kyst").get_data(as_text=True)
     assert "<title>Kyst</title>" in body
     assert '<a class="brand" href="/">Kyst</a>' in body
@@ -141,6 +146,55 @@ def test_rename_keeps_the_link_and_the_other_group(tmp_path):
     kept = client.get("/g/" + token)
     assert kept.status_code == 200
     assert "<title>Kyst</title>" in kept.get_data(as_text=True)
+
+
+def test_group_create_retries_when_the_slug_insert_collides(tmp_path, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    original = db.session.commit
+    state = {"hits": 0}
+
+    def commit():
+        state["hits"] += 1
+        if state["hits"] == 1:
+            raise IntegrityError("INSERT", {}, Exception("slug"))
+        return original()
+
+    monkeypatch.setattr(db.session, "commit", commit)
+    created = client.post("/start/groups", data={"name": "Fjord"})
+    assert created.status_code == 302
+    assert created.headers["Location"] == "/g/fjord"
+    assert state["hits"] == 2
+    assert "<title>Fjord</title>" in client.get("/g/fjord").get_data(as_text=True)
+
+
+def test_secure_cookie_follows_the_database_not_flask_env():
+    from app import _session_cookie_secure
+
+    assert app.config["SESSION_COOKIE_SECURE"] is False
+    assert _session_cookie_secure("postgresql://db.example/golf") is True
+    assert _session_cookie_secure("postgres://db.example/golf") is True
+    assert _session_cookie_secure("sqlite:///golf.db") is False
+
+
+def test_missing_finale_bonus_column_is_added(tmp_path):
+    from sqlalchemy import inspect, text
+
+    client = _client(tmp_path)
+    client.get("/start")
+    with app.app_context():
+        db.session.execute(text("ALTER TABLE trip_players DROP COLUMN finale_bonus"))
+        db.session.commit()
+        app._schema_ready = False
+    assert client.get("/start").status_code == 200
+    with app.app_context():
+        columns = {
+            column["name"]
+            for column in inspect(db.session.get_bind()).get_columns("trip_players")
+        }
+    assert "finale_bonus" in columns
 
 
 def test_long_group_name_is_rejected(tmp_path):
