@@ -16,13 +16,16 @@
 
 Preconditions:
 
-- The trip exists and a course with a tee exists. `Bane` and `Tee` are selects, not free text.
-- `2026-10-20` is a Tuesday. It is before 27 Oct 2026, so `dager til tee-off` stays hidden.
+- The trip exists and the course has both `Gul (Herre)` and `Rød (Dame)`. `Bane` and `Tee` are selects, not free text. `Rød (Dame)` is listed first because its course rating is higher. A new round still selects `Gul (Herre)`.
+- `Type` lists `OOM`, `Trening`, and `Finale`.
+- `2026-10-20` is a Tuesday. `dager til tee-off` appears only when the earliest round date is after today. On 7 Nov 2026 that Tuesday is in the past, so the line stays hidden.
 
-- Action: add a round. Choose `Ny runde`. The heading is `Ny runde`. Choose `Bane` `Verify Hills` and `Tee` `Gul`. Fill `Dato` with `2026-10-20`, `Teetime` with `09:30`, leave `Type` as `OOM`, fill `Henting` with `Sandvika`, and choose `Lagre`. Result: the trip title stays the trip name. The row reads `Tirsdag 20.10 · Gul · 09:30 · Sandvika` and has a `Score` link.
+- Action: add a round. Choose `Ny runde`. The heading is `Ny runde`. `Bane` is `Verify Hills` and `Tee` is `Gul (Herre)`. Fill `Dato` with `2026-10-20`, `Teetime` with `09:30`, leave `Type` as `OOM`, fill `Henting` with `Sandvika`, and choose `Lagre`. Result: the trip title stays the trip name. The row reads `Tirsdag 20.10 · Gul · 09:30 · Sandvika` and has a `Score` link. The row uses the tee name without the gender.
 
 ## Gotchas
 
 - There is no `Tee times` page and no `Golfrunder` heading.
 - `Henting` accepts at most 12 characters.
+- `Baner` on this form opens `/baner`.
+- A round whose `Type` is `Trening` adds `· Trening` on the row. Its `Score` link opens `Registrer score`.
 - A round whose `Type` is `Finale` adds `· Finale` on the row. Its `Score` link opens Finale, not the OOM score form.

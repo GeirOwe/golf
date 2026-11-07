@@ -6,7 +6,7 @@ Finale is a round on a trip. The first saved finale score locks the Order of Mer
 
 - `finale-bonus` shows the live bonus before any finale score is saved.
 - `finale-save` stores the score and opens Finaleresultat.
-- `finale-place` shows a medal for first place and total as score plus bonus.
+- `finale-place` shows a medal for places 1, 2, and 3. One player proves `1. plass`, with total as score plus bonus.
 
 ## How to get to it (user POV)
 
@@ -26,6 +26,7 @@ Preconditions:
 
 ## Gotchas
 
+- Before a finale round exists, Finale says `Ingen finale ennå.` After the finale score is saved, the trip header link is `Finaleresultat`.
 - There is no home `Finale` link, no `Lagre score` button, and no `Nullstill finale`.
 - The form does not show a place or a total. Those are on Finaleresultat.
 - The score is a `round_scores` row. The bonus is `trip_players.finale_bonus`. There is no `finale_scores` table.

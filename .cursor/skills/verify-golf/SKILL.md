@@ -90,7 +90,7 @@ Stable handles are the visible labels and link text, not coordinates:
 | Public strokes | `/baner/mottatte-slag` | `Mottatte slag` | `Mottatte slag` |
 | Group strokes | `/g/<slug>/mottatte-slag` | `Mottatte slag` | `Mottatte slag` |
 
-`/` asks for the group link and does not list groups. Organizer work starts at `/start` with `Kode` `verify-secret`, unless an earlier cookie on `127.0.0.1` already signed that session in. Course registration is not linked from `/` or from the group. Open `/baner`.
+`/` asks for the group link and does not list groups. Organizer work starts at `/start` with `Kode` `verify-secret`, unless an earlier cookie on `127.0.0.1` already signed that session in. Home does not link to course registration. The group, the trip, and the round form do, through `Baner` to `/baner`.
 
 Do not submit `Slett`, `Slett tur`, or `Fjern`. Cleanup removes the scratch directory; it does not delete rows through the app.
 

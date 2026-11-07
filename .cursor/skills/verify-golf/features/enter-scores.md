@@ -29,3 +29,4 @@ Preconditions:
 - There is no `Lagre Score` button and no `Scoreoversikt` title.
 - The table scrolls sideways when the week does not fit. The player column stays pinned.
 - A finale round is not an OOM column. Its `Score` link opens Finale.
+- A `Trening` round uses the same `Registrer score` page, and the subtitle ends with `· Trening`. The score is stored and is not an OOM column. Look for `class="num">40` being absent. The text `40` also appears in the font URL.
