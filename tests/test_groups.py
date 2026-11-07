@@ -56,8 +56,9 @@ def test_token_lookup_hides_the_other_group(tmp_path):
     assert "Algarve" not in fjord_body
     assert "Ingen turer ennå." in fjord_body
     assert 'href="/g/fjord/players">Ny spiller</a>' in fjord_body
-    assert 'href="/baner/ny">Ny bane</a>' in fjord_body
-    assert fjord_body.index("Ny spiller") < fjord_body.index("Ny bane")
+    assert 'href="/baner">Baner</a>' in fjord_body
+    assert 'href="/baner/ny"' not in fjord_body
+    assert fjord_body.index("Ny spiller") < fjord_body.index(">Baner</a>")
     assert "Lisboa Høst" not in fjord_body
     assert algarve.status_code == 200
     assert "<title>Algarve</title>" in algarve_body

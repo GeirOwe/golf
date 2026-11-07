@@ -1,0 +1,7 @@
+feature: courses-link
+entry: /start
+url: http://127.0.0.1:59856
+run_id: 20261107175713-58217
+
+Group Fjord shows Baner beside Ny spiller. It opened /baner, which has Ny bane.
+Trip Høst shows Baner beside Ny runde. It opened /baner. Hjem returned to the trip.
