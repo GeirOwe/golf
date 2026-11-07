@@ -853,6 +853,7 @@ def _group_or_404(token):
         group = Group.query.filter_by(token=token).one_or_none()
     if group is None:
         abort(404)
+    _remember_work(group)
     return group
 
 
@@ -963,7 +964,34 @@ def _trip_or_404(group, trip_id):
     trip = Trip.query.filter_by(id=trip_id, group_id=group.id).one_or_none()
     if trip is None:
         abort(404)
+    _remember_work(group, trip)
     return trip
+
+
+def _remember_work(group, trip=None):
+    """Course pages are shared. Hjem returns to the group, or the trip, last opened."""
+    session["work_group"] = group.slug
+    if trip is None:
+        session.pop("work_trip", None)
+    else:
+        session["work_trip"] = trip.id
+
+
+def _work_home():
+    slug = session.get("work_group")
+    if not slug:
+        return url_for("home")
+    group = Group.query.filter_by(slug=slug).one_or_none()
+    trip_id = session.get("work_trip")
+    if group is None:
+        session.pop("work_group", None)
+        session.pop("work_trip", None)
+        return url_for("home")
+    if trip_id:
+        trip = Trip.query.filter_by(id=trip_id, group_id=group.id).one_or_none()
+        if trip is not None:
+            return url_for("show_trip", token=group.slug, trip_id=trip.id)
+    return url_for("show_group", token=group.slug)
 
 
 def _round_or_404(trip, round_id):
@@ -1571,7 +1599,7 @@ def show_oom(token, trip_id):
 def list_golf_courses():
     """List all registered golf courses."""
     courses = GolfCourse.get_all()
-    return render_template("list_golf_courses.html", courses=courses)
+    return render_template("list_golf_courses.html", courses=courses, home_url=_work_home())
 
 
 def _strokes_page(players, group=None):
@@ -1607,6 +1635,7 @@ def _strokes_page(players, group=None):
         course_id=course_id,
         tee_id=tee_id,
         group=group,
+        home_url=_work_home(),
     )
 
 
@@ -1681,6 +1710,7 @@ def add_golf_course():
         tee_genders=TEE_GENDERS,
         form=form,
         show_strokes=False,
+        home_url=_work_home(),
     )
 
 
@@ -1739,6 +1769,7 @@ def view_golf_course(course_id):
         show_strokes=True,
         error=error,
         message=message,
+        home_url=_work_home(),
     )
 
 

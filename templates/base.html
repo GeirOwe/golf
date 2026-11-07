@@ -13,7 +13,7 @@
   <div class="page-shell">
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="brand" href="{{ url_for('home') }}">{% block brand %}Fore{% endblock %}</a>
+        <a class="brand" href="{% block brand_href %}{{ url_for('home') }}{% endblock %}">{% block brand %}Fore{% endblock %}</a>
       </div>
     </header>
     <main class="site-main">

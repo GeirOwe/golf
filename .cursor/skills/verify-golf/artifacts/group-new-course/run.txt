@@ -1,0 +1,7 @@
+feature: group-new-course
+entry: /start
+url: http://127.0.0.1:58247
+run_id: 20261107171935-55748
+
+Group Fjord home shows Ny bane beside Ny spiller.
+Ny bane opened /baner/ny. Hjem returned to /g/fjord.
