@@ -28,6 +28,10 @@
 
         {% if course.holes %}
         <h2>Hull</h2>
+        {% set front_nine = course.holes|selectattr('number', 'le', 9)|list %}
+        {% set back_nine = course.holes|selectattr('number', 'gt', 9)|list %}
+        {% if front_nine %}
+        <h3>Hull 1–9</h3>
         <table class="player-table">
             <thead>
                 <tr>
@@ -37,7 +41,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for hole in course.holes %}
+                {% for hole in front_nine %}
                 <tr>
                     <td>{{ hole.number }}</td>
                     <td>{% if hole.par is not none %}{{ hole.par }}{% else %}–{% endif %}</td>
@@ -46,6 +50,28 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% endif %}
+        {% if back_nine %}
+        <h3>Hull 10–18</h3>
+        <table class="player-table">
+            <thead>
+                <tr>
+                    <th>Hull</th>
+                    <th>Par</th>
+                    <th>Handicap</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for hole in back_nine %}
+                <tr>
+                    <td>{{ hole.number }}</td>
+                    <td>{% if hole.par is not none %}{{ hole.par }}{% else %}–{% endif %}</td>
+                    <td>{% if hole.stroke_index is not none %}{{ hole.stroke_index }}{% else %}–{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
         {% endif %}
 
         <h2>Tee-steder</h2>

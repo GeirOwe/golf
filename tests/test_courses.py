@@ -94,17 +94,17 @@ def test_new_course_stores_optional_hole_details(tmp_path):
         data={
             "name": "Verify Links",
             "facility": "Verify Bay",
-            "hole_count": "9",
-            "hole_number": ["1", "2", "", "9"],
-            "hole_par": ["4", "3", "", "5"],
-            "hole_stroke_index": ["7", "", "", "1"],
+            "hole_count": "18",
+            "hole_number": ["1", "2", "9", "10", "18"],
+            "hole_par": ["4", "3", "5", "4", "5"],
+            "hole_stroke_index": ["7", "", "1", "2", "3"],
             **_tee_fields(),
         },
     )
     assert created.status_code == 302
     with app.app_context():
         course = GolfCourse.query.filter_by(name="Verify Links").one()
-        assert course.hole_count == 9
+        assert course.hole_count == 18
         holes = {
             hole.number: (hole.par, hole.stroke_index)
             for hole in CourseHole.query.filter_by(course_id=course.id).all()
@@ -113,13 +113,19 @@ def test_new_course_stores_optional_hole_details(tmp_path):
             1: (4, 7),
             2: (3, None),
             9: (5, 1),
+            10: (4, 2),
+            18: (5, 3),
         }
         course_id = course.id
     page = client.get(f"/baner/{course_id}").get_data(as_text=True)
     assert "<h2>Hull</h2>" in page
-    assert ">1<" in page
-    assert ">4<" in page
-    assert ">7<" in page
+    assert "<h3>Hull 1–9</h3>" in page
+    assert "<h3>Hull 10–18</h3>" in page
+    front, back = page.split("<h3>Hull 10–18</h3>", 1)
+    assert ">1<" in front and ">9<" in front
+    assert ">10<" not in front
+    assert ">10<" in back and ">18<" in back
+    assert ">1<" not in back.split("<tbody>", 1)[-1]
 
 
 def test_new_course_rejects_invalid_optional_holes(tmp_path):
