@@ -6,7 +6,7 @@ from datetime import date, datetime
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-from flask import Flask, abort, redirect, render_template, request, session, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
@@ -23,6 +23,7 @@ from database import (
     TripPlayer,
     db,
 )
+from course_lookup import fetch_ratings, fetch_scorecard
 from models import HandicapError, course_handicap
 from scoring import finale_table, oom_table
 
@@ -103,7 +104,7 @@ def _parse_hole_count(raw):
     """Require a whole number of holes between 1 and 54."""
     text_value = (raw or "").strip()
     if not text_value:
-        return None, "Skriv antall hull."
+        return None, "Hent scorekortet for å sette antall hull."
     try:
         count = int(text_value)
     except ValueError:
@@ -129,22 +130,25 @@ def _parse_hole_rows_from_form(form, hole_count):
     numbers = form.getlist("hole_number")
     pars = form.getlist("hole_par")
     indexes = form.getlist("hole_stroke_index")
-    if not numbers and not pars and not indexes:
+    meters = form.getlist("hole_meters")
+    if not numbers and not pars and not indexes and not meters:
         return [], None
 
-    longest = max(len(numbers), len(pars), len(indexes))
+    longest = max(len(numbers), len(pars), len(indexes), len(meters))
     numbers += [""] * (longest - len(numbers))
     pars += [""] * (longest - len(pars))
     indexes += [""] * (longest - len(indexes))
+    meters += [""] * (longest - len(meters))
 
     rows = []
     seen = set()
-    for number_raw, par_raw, index_raw in zip(numbers, pars, indexes):
+    for number_raw, par_raw, index_raw, meters_raw in zip(numbers, pars, indexes, meters):
         number_text = (number_raw or "").strip()
         par_text = (par_raw or "").strip()
         index_text = (index_raw or "").strip()
-        # Prefill may send hole numbers alone; ignore until par or handicap is set.
-        if not par_text and not index_text:
+        meters_text = (meters_raw or "").strip()
+        # A fetched card sends every hole number. Ignore a row until something is filled in.
+        if not par_text and not index_text and not meters_text:
             continue
         if not number_text:
             return None, "Hullnummer må fylles ut når du legger inn hull."
@@ -163,19 +167,25 @@ def _parse_hole_rows_from_form(form, hole_count):
             return None, par_error
         if par is not None and (par < 3 or par > 6):
             return None, f"Par for hull {number} må være mellom 3 og 6."
-        stroke_index, index_error = _parse_optional_int(index_text, "handicap")
+        stroke_index, index_error = _parse_optional_int(index_text, "index")
         if index_error:
             return None, index_error
         max_index = hole_count if hole_count is not None else 54
         if stroke_index is not None and (stroke_index < 1 or stroke_index > max_index):
             return None, (
-                f"Handicap for hull {number} må være mellom 1 og {max_index}."
+                f"Index for hull {number} må være mellom 1 og {max_index}."
             )
+        length, meters_error = _parse_optional_int(meters_text, "meter")
+        if meters_error:
+            return None, meters_error
+        if length is not None and (length < 30 or length > 750):
+            return None, f"Meter for hull {number} må være mellom 30 og 750."
         seen.add(number)
         rows.append({
             "number": number,
             "par": par,
             "stroke_index": stroke_index,
+            "meters": length,
         })
     return rows, None
 
@@ -189,6 +199,7 @@ def _apply_hole_rows(course, rows):
             number=row["number"],
             par=row["par"],
             stroke_index=row["stroke_index"],
+            meters=row.get("meters"),
         ))
 
 
@@ -227,21 +238,159 @@ def _course_hole_errors(hole_rows, hole_count, tee_rows):
     return _hole_stroke_index_error(hole_rows, hole_count)
 
 
-def _hole_editor_rows(course):
-    """One editable row per hole number up to hole_count."""
+def _blank_tee():
+    return {
+        "tee_id": "",
+        "name": "",
+        "gender": "Herre",
+        "par": "",
+        "course_rating": "",
+        "slope_rating": "",
+        "strokes_10": None,
+        "strokes_20": None,
+    }
+
+
+def _example_strokes(par, course_rating, slope):
+    try:
+        par_value = int(par)
+        rating = float(course_rating)
+        slope_value = int(slope)
+    except (TypeError, ValueError):
+        return None, None
+    return (
+        course_handicap(10, slope_value, rating, par_value),
+        course_handicap(20, slope_value, rating, par_value),
+    )
+
+
+def _split_holes(holes):
+    front = []
+    back = []
+    for hole in holes:
+        try:
+            number = int(str(hole["number"]).strip())
+        except (TypeError, ValueError):
+            front.append(hole)
+            continue
+        (front if number <= 9 else back).append(hole)
+    return front, back
+
+
+def _form_state(name, facility, hole_count, holes, tees):
+    front, back = _split_holes(holes)
+    return {
+        "name": name,
+        "facility": facility,
+        "hole_count": "" if hole_count is None else hole_count,
+        "holes": holes,
+        "front_holes": front,
+        "back_holes": back,
+        "tees": tees,
+    }
+
+
+def _empty_course_form():
+    return _form_state("", "", "", [], [_blank_tee() for _ in range(4)])
+
+
+def _course_form_state(course, blank_tees):
     by_number = {hole.number: hole for hole in course.holes}
-    count = course.hole_count or 0
-    rows = []
-    for number in range(1, count + 1):
+    holes = []
+    for number in range(1, (course.hole_count or 0) + 1):
         hole = by_number.get(number)
-        rows.append({
+        holes.append({
             "number": number,
             "par": "" if hole is None or hole.par is None else hole.par,
             "stroke_index": (
                 "" if hole is None or hole.stroke_index is None else hole.stroke_index
             ),
+            "meters": "" if hole is None or hole.meters is None else hole.meters,
         })
-    return rows
+    tees = []
+    for tee in course.tees:
+        strokes_10, strokes_20 = _example_strokes(
+            tee.par, tee.course_rating, tee.slope_rating
+        )
+        tees.append({
+            "tee_id": tee.id,
+            "name": tee.name,
+            "gender": tee.gender,
+            "par": tee.par,
+            "course_rating": tee.course_rating,
+            "slope_rating": tee.slope_rating,
+            "strokes_10": strokes_10,
+            "strokes_20": strokes_20,
+        })
+    tees.extend(_blank_tee() for _ in range(blank_tees))
+    return _form_state(course.name, course.facility, course.hole_count or "", holes, tees)
+
+
+def _posted_course_form(form):
+    """Keep every posted field when saving fails, including a wrong index."""
+    def values(key):
+        return list(form.getlist(key))
+
+    def at(items, index):
+        if index >= len(items) or items[index] is None:
+            return ""
+        return items[index]
+
+    numbers = values("hole_number")
+    pars = values("hole_par")
+    indexes = values("hole_stroke_index")
+    meters = values("hole_meters")
+    hole_count = max(len(numbers), len(pars), len(indexes), len(meters))
+    holes = []
+    for index in range(hole_count):
+        number = at(numbers, index)
+        par = at(pars, index)
+        stroke_index = at(indexes, index)
+        length = at(meters, index)
+        if not any(str(part).strip() for part in (number, par, stroke_index, length)):
+            continue
+        holes.append({
+            "number": number,
+            "par": par,
+            "stroke_index": stroke_index,
+            "meters": length,
+        })
+
+    tee_ids = values("tee_id")
+    tee_names = values("tee_name")
+    tee_genders = values("tee_gender")
+    tee_pars = values("tee_par")
+    tee_crs = values("tee_cr")
+    tee_slopes = values("tee_slope")
+    tee_count = max(
+        len(tee_ids), len(tee_names), len(tee_genders),
+        len(tee_pars), len(tee_crs), len(tee_slopes),
+    )
+    tees = []
+    for index in range(tee_count):
+        par = at(tee_pars, index)
+        course_rating = at(tee_crs, index)
+        slope = at(tee_slopes, index)
+        strokes_10, strokes_20 = _example_strokes(par, course_rating, slope)
+        tees.append({
+            "tee_id": at(tee_ids, index),
+            "name": at(tee_names, index),
+            "gender": at(tee_genders, index) or "Herre",
+            "par": par,
+            "course_rating": course_rating,
+            "slope_rating": slope,
+            "strokes_10": strokes_10,
+            "strokes_20": strokes_20,
+        })
+    if not tees:
+        tees = [_blank_tee()]
+    return _form_state(
+        (form.get("name") or "").strip(),
+        (form.get("facility") or "").strip(),
+        (form.get("hole_count") or "").strip(),
+        holes,
+        tees,
+    )
 
 
 def _hole_stroke_index_error(hole_rows, hole_count):
@@ -255,17 +404,17 @@ def _hole_stroke_index_error(hole_rows, hole_count):
         return None
     expected_holes = set(range(1, hole_count + 1))
     if set(indexes_by_hole) != expected_holes:
-        return "Fyll inn handicap for alle hull, eller la alle stå tomme."
+        return "Fyll inn index for alle hull, eller la alle stå tomme."
     values = list(indexes_by_hole.values())
     seen = set()
     for value in values:
         if value in seen:
-            return f"Handicap {value} er oppgitt mer enn én gang."
+            return f"Index {value} er oppgitt mer enn én gang."
         seen.add(value)
     missing = expected_holes - set(values)
     if missing:
         missing_list = ", ".join(str(number) for number in sorted(missing))
-        return f"Handicap-oversikten mangler {missing_list}."
+        return f"Index-oversikten mangler {missing_list}."
     return None
 
 
@@ -423,6 +572,18 @@ def ensure_finale_bonus_column():
     db.session.commit()
 
 
+def ensure_course_hole_meters_column():
+    """Add course_holes.meters for databases created before hole lengths."""
+    bind = db.session.get_bind()
+    if "course_holes" not in inspect(bind).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(bind).get_columns("course_holes")}
+    if "meters" in columns:
+        return
+    db.session.execute(text("ALTER TABLE course_holes ADD COLUMN meters INTEGER"))
+    db.session.commit()
+
+
 def ensure_golf_course_hole_count_column():
     """Add golf_courses.hole_count for databases created before hole details."""
     bind = db.session.get_bind()
@@ -468,6 +629,7 @@ def _init_schema():
     ensure_group_slug_column()
     ensure_finale_bonus_column()
     ensure_golf_course_hole_count_column()
+    ensure_course_hole_meters_column()
     ensure_round_score_unique()
 
 
@@ -1374,22 +1536,33 @@ def group_strokes(token):
     return _strokes_page(group.players, group)
 
 
+@app.route("/baner/hent", methods=["POST"])
+def fetch_course_data():
+    """Fill par, index, meters or CR/slope from the club's own pages."""
+    payload = request.get_json(silent=True) or request.form
+    kind = (payload.get("kind") or "").strip()
+    name = payload.get("name") or ""
+    facility = payload.get("facility") or ""
+    http_get = app.config.get("COURSE_HTTP_GET")
+    if kind == "scorecard":
+        result = fetch_scorecard(name, facility, http_get=http_get)
+    elif kind == "rating":
+        result = fetch_ratings(name, facility, http_get=http_get)
+    else:
+        result = {"ok": False, "error": "Ukjent henting. Skjemaet er uendret."}
+    return jsonify(result)
+
+
 @app.route("/baner/ny", methods=["GET", "POST"])
 def add_golf_course():
     """Register a golf course with tee boxes."""
     error = None
-    form_values = {
-        "name": "",
-        "facility": "",
-        "hole_count": "",
-    }
+    form = _empty_course_form()
     if request.method == "POST":
-        name = (request.form.get("name") or "").strip()
-        facility = (request.form.get("facility") or "").strip()
-        form_values["name"] = name
-        form_values["facility"] = facility
-        form_values["hole_count"] = (request.form.get("hole_count") or "").strip()
-        hole_count, hole_count_error = _parse_hole_count(form_values["hole_count"])
+        form = _posted_course_form(request.form)
+        name = form["name"]
+        facility = form["facility"]
+        hole_count, hole_count_error = _parse_hole_count(form["hole_count"])
         rows, parse_error = _parse_tee_rows_from_form(request.form)
         hole_rows, hole_error = _parse_hole_rows_from_form(request.form, hole_count)
 
@@ -1420,24 +1593,28 @@ def add_golf_course():
         "add_golf_course.html",
         error=error,
         tee_genders=TEE_GENDERS,
-        form=form_values,
+        form=form,
+        show_strokes=False,
     )
 
 
 @app.route("/baner/<int:course_id>", methods=["GET", "POST"])
 def view_golf_course(course_id):
-    """Show and edit course details, tees, and optional hole data."""
+    """Show and edit course details, tees, and hole data."""
     course = GolfCourse.get_by_id(course_id)
     if not course:
         return redirect(url_for("list_golf_courses"))
 
     error = None
     message = request.args.get("message")
+    blank_tees = 2 if course.tees else 4
+    form = _course_form_state(course, blank_tees)
 
     if request.method == "POST":
-        name = (request.form.get("name") or "").strip()
-        facility = (request.form.get("facility") or "").strip()
-        hole_count, hole_count_error = _parse_hole_count(request.form.get("hole_count"))
+        form = _posted_course_form(request.form)
+        name = form["name"]
+        facility = form["facility"]
+        hole_count, hole_count_error = _parse_hole_count(form["hole_count"])
         rows, parse_error = _parse_tee_rows_from_form(request.form)
         hole_rows, hole_error = _parse_hole_rows_from_form(request.form, hole_count)
 
@@ -1471,9 +1648,9 @@ def view_golf_course(course_id):
     return render_template(
         "view_golf_course.html",
         course=course,
-        course_handicap=course_handicap,
         tee_genders=TEE_GENDERS,
-        hole_rows=_hole_editor_rows(course),
+        form=form,
+        show_strokes=True,
         error=error,
         message=message,
     )

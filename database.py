@@ -220,7 +220,7 @@ class GolfCourse(db.Model):
 
 
 class CourseHole(db.Model):
-    """Optional per-hole par and stroke index for a course."""
+    """Per-hole par, stroke index and length in meters."""
     __tablename__ = 'course_holes'
     __table_args__ = (
         UniqueConstraint('course_id', 'number', name='uq_course_hole_number'),
@@ -231,6 +231,7 @@ class CourseHole(db.Model):
     number = db.Column(db.Integer, nullable=False)
     par = db.Column(db.Integer)
     stroke_index = db.Column(db.Integer)
+    meters = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 

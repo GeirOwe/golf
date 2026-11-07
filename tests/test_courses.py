@@ -12,6 +12,7 @@ _DB_PATH = Path(tempfile.mkdtemp(prefix="golf-courses-")) / "golf.db"
 os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 
 from app import app, db
+from course_lookup import SOURCES
 from database import CourseHole, CourseTee, GolfCourse
 
 
@@ -50,10 +51,10 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     form = client.get("/baner/ny")
     body = form.get_data(as_text=True)
     assert form.status_code == 200
-    assert 'name="hole_count"' in body
-    assert "Hull (valgfritt)" in body
-    assert "value=\"' + number + '\"" in body
-    assert "for (var i = 1; i <= count; i += 1) html += rowHtml(i, maxIndex);" in body
+    assert 'id="hole_count"' in body
+    assert "Hent scorekort" in body
+    assert "Hent CR/Slope" in body
+    assert ">Antall hull<" not in body
 
     missing = client.post(
         "/baner/ny",
@@ -64,7 +65,7 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
         },
     )
     assert missing.status_code == 200
-    assert "Skriv antall hull." in missing.get_data(as_text=True)
+    assert "Hent scorekortet for å sette antall hull." in missing.get_data(as_text=True)
 
     # Browser-like: prefilled hullnummer 1..9 with blank par/handicap must not error.
     created = client.post(
@@ -90,8 +91,8 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     shown = page.get_data(as_text=True)
     assert page.status_code == 200
     assert 'name="hole_count"' in shown
-    assert "Hull (valgfritt)" in shown
-    assert 'name="hole_number"' in shown or "hole_number" in shown
+    assert "Hent scorekort" in shown
+    assert 'name="hole_number"' in shown
 
 
 def test_new_course_stores_optional_hole_details(tmp_path):
@@ -121,12 +122,11 @@ def test_new_course_stores_optional_hole_details(tmp_path):
         assert holes == {n: (None, n) for n in range(1, 19)}
         course_id = course.id
     page = client.get(f"/baner/{course_id}").get_data(as_text=True)
-    assert "Hull (valgfritt)" in page
+    assert "Hent scorekort" in page
     assert "<h2>Hull 1–9</h2>" in page
     assert "<h2>Hull 10–18</h2>" in page
-    assert 'class="section__head"' in page
-    assert '"number": 1' in page and '"number": 18' in page
-    assert '"stroke_index": 1' in page and '"stroke_index": 18' in page
+    assert 'name="hole_stroke_index"' in page
+    assert 'value="18"' in page
 
 
 def test_hole_par_sum_must_match_tee_par(tmp_path):
@@ -225,7 +225,7 @@ def test_hole_stroke_index_must_be_complete_unique_and_in_range(tmp_path):
         },
     )
     assert (
-        "Handicap for hull 9 må være mellom 1 og 9."
+        "Index for hull 9 må være mellom 1 og 9."
         in out_of_range.get_data(as_text=True)
     )
 
@@ -241,7 +241,7 @@ def test_hole_stroke_index_must_be_complete_unique_and_in_range(tmp_path):
             **_tee_fields(),
         },
     )
-    assert "Handicap 8 er oppgitt mer enn én gang." in duplicate.get_data(as_text=True)
+    assert "Index 8 er oppgitt mer enn én gang." in duplicate.get_data(as_text=True)
 
     missing = client.post(
         "/baner/ny",
@@ -256,7 +256,7 @@ def test_hole_stroke_index_must_be_complete_unique_and_in_range(tmp_path):
         },
     )
     assert (
-        "Fyll inn handicap for alle hull, eller la alle stå tomme."
+        "Fyll inn index for alle hull, eller la alle stå tomme."
         in missing.get_data(as_text=True)
     )
 
@@ -415,7 +415,119 @@ def test_hole_par_sum_allows_differing_tees_and_rechecks_on_tee_edit(tmp_path):
         },
     )
     assert drifted.status_code == 200
+    drifted_body = drifted.get_data(as_text=True)
     assert (
         "Summen av par på hullene er 36, men ingen tee har det par-tallet (tees: 35, 38)."
-        in drifted.get_data(as_text=True)
+        in drifted_body
     )
+    assert 'value="35"' in drifted_body
+    assert 'value="Verify Split"' in drifted_body
+
+
+def test_invalid_index_keeps_the_rest_of_the_form(tmp_path):
+    client = _client(tmp_path)
+    numbers = [str(n) for n in range(1, 10)]
+    rejected = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Keep",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": ["4", "5", "3", "4", "4", "4", "4", "4", "4"],
+            "hole_stroke_index": ["1", "2", "3", "4", "5", "6", "7", "8", "10"],
+            "hole_meters": ["310", "150", "320", "180", "400", "160", "490", "470", "380"],
+            **_tee_fields(),
+        },
+    )
+    body = rejected.get_data(as_text=True)
+    assert rejected.status_code == 200
+    assert "Index for hull 9 må være mellom 1 og 9." in body
+    assert 'value="Verify Keep"' in body
+    assert 'value="Verify Park"' in body
+    assert 'value="Gul"' in body
+    assert 'value="71.2"' in body
+    assert 'value="5"' in body
+    assert 'value="10"' in body
+    assert 'value="310"' in body
+    assert body.count('name="hole_par"') == 9
+    with app.app_context():
+        assert GolfCourse.query.filter_by(name="Verify Keep").count() == 0
+
+
+def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_path):
+    client = _client(tmp_path)
+    source = next(item for item in SOURCES if "larvik" in item["aliases"])
+    scorecard = """
+    <table class="scorecard portrait"><thead>
+    <th class="scc-hole">Hull</th><th class="tee-1">63</th>
+    <th class="scc-ind">Hcp</th><th class="scc-par">Par</th></thead><tbody>
+    <tr><td class="scc-hole">1</td><td class="tee-1">338</td><td class="scc-ind">2</td><td class="scc-par">4</td></tr>
+    <tr><td class="scc-hole">2</td><td class="tee-1">152</td><td class="scc-ind">1</td><td class="scc-par">3</td></tr>
+    </tbody></table>
+    """
+    slope_page = '<a class="seltee " rel="seasidebanen" data-send="1">63</a>'
+    slope = '<div class="thistee ">63</div><h3>HERRER</h3>Par: 72<br />CR/Slope:<br />73,3/145'
+    pages = {
+        source["scorecard_url"]: scorecard,
+        source["slope_url"]: slope_page,
+        source["slope_base"] + "/script/aj_slopetabs?course=seasidebanen&ref=1": slope,
+    }
+
+    def fake_get(url):
+        if url not in pages:
+            raise AssertionError(url)
+        return pages[url]
+
+    app.config["COURSE_HTTP_GET"] = fake_get
+    try:
+        unknown = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Quinta da Marinha", "facility": "Cascais"},
+        )
+        assert unknown.status_code == 200
+        assert unknown.json["ok"] is False
+        assert "uendret" in unknown.json["error"]
+
+        card = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Larvik - 18 hull", "facility": "Larvik gk"},
+        )
+        assert card.json["ok"] is True
+        assert card.json["holes"] == [
+            {"number": 1, "par": 4, "stroke_index": 2, "meters": 338},
+            {"number": 2, "par": 3, "stroke_index": 1, "meters": 152},
+        ]
+        assert card.json["meters_tee"] == "63"
+        assert "Larvik Golfklubb" in card.json["message"]
+
+        ratings = client.post(
+            "/baner/hent",
+            json={"kind": "rating", "name": "Larvik", "facility": ""},
+        )
+        assert ratings.json["ok"] is True
+        assert ratings.json["tees"] == [{
+            "name": "63",
+            "gender": "Herre",
+            "par": 72,
+            "course_rating": 73.3,
+            "slope_rating": 145,
+        }]
+    finally:
+        app.config.pop("COURSE_HTTP_GET", None)
+
+
+def test_missing_meters_column_is_added(tmp_path):
+    client = _client(tmp_path)
+    client.get("/baner")
+    with app.app_context():
+        db.session.execute(text("ALTER TABLE course_holes DROP COLUMN meters"))
+        db.session.commit()
+        app._schema_ready = False
+    client.get("/baner")
+    with app.app_context():
+        columns = {
+            column["name"]
+            for column in inspect(db.session.get_bind()).get_columns("course_holes")
+        }
+    assert "meters" in columns

@@ -15,116 +15,13 @@
   </div>
   {% endif %}
 
-  <form class="form" method="post" id="course-form">
-    <div class="field">
-      <label for="name">Banenavn</label>
-      <input class="input" type="text" id="name" name="name" value="{{ form.name }}" required autocomplete="off">
-    </div>
-    <div class="field">
-      <label for="facility">Anlegg</label>
-      <input class="input" type="text" id="facility" name="facility" value="{{ form.facility }}" required placeholder="f.eks. Søgne Golfklubb" autocomplete="off">
-    </div>
-    <div class="field">
-      <label for="hole_count">Antall hull</label>
-      <input class="input" type="number" id="hole_count" name="hole_count" value="{{ form.hole_count }}" min="1" max="54" step="1" required>
-    </div>
-
-    <div class="section__head">
-      <h2>Tee-steder</h2>
-      <p>Mottatte slag (WHS): Handicap Index × (Slope / 113) + (CR − Par).</p>
-    </div>
-    <div class="sheet-scroll">
-      <table class="sheet">
-        <thead>
-          <tr>
-            <th>Tee</th>
-            <th>Kjønn</th>
-            <th class="num">Par</th>
-            <th class="num">CR</th>
-            <th class="num">Slope</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for i in range(4) %}
-          <tr>
-            <td>
-              <input type="hidden" name="tee_id" value="">
-              <input class="input input--name" type="text" name="tee_name" placeholder="f.eks. Gul" autocomplete="off">
-            </td>
-            <td>
-              <select class="input" name="tee_gender">
-                {% for g in tee_genders %}
-                <option value="{{ g }}">{{ g }}</option>
-                {% endfor %}
-              </select>
-            </td>
-            <td class="num">
-              <input class="input" type="number" name="tee_par" min="27" max="80" step="1">
-            </td>
-            <td class="num">
-              <input class="input" type="number" name="tee_cr" min="50" max="85" step="0.1">
-            </td>
-            <td class="num">
-              <input class="input" type="number" name="tee_slope" min="55" max="155" step="1">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="section__head">
-      <h2>Hull (valgfritt)</h2>
-      <p>Du kan hoppe over dette. Hullnummer fylles inn automatisk; legg til par og handicap (slagindeks) hvis du vil.</p>
-    </div>
-    <div class="sheet-scroll">
-      <table class="sheet">
-        <thead>
-          <tr>
-            <th>Hull</th>
-            <th class="num">Par</th>
-            <th class="num">Handicap</th>
-          </tr>
-        </thead>
-        <tbody id="hole-rows"></tbody>
-      </table>
-    </div>
-
+  <form class="form" method="post" id="course-form" data-fetch-url="{{ url_for('fetch_course_data') }}">
+    {% include "course_fields.html" %}
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">Lagre bane</button>
       <a class="btn btn--ghost" href="{{ url_for('list_golf_courses') }}">Tilbake</a>
     </div>
   </form>
 </section>
-<script>
-(function () {
-  var countInput = document.querySelector("#hole_count");
-  var body = document.querySelector("#hole-rows");
-  if (!countInput || !body) return;
-
-  function rowHtml(number, maxIndex) {
-    return (
-      "<tr>" +
-      '<td><input class="input" type="number" name="hole_number" min="1" max="54" step="1" value="' + number + '"></td>' +
-      '<td class="num"><input class="input" type="number" name="hole_par" min="3" max="6" step="1"></td>' +
-      '<td class="num"><input class="input" type="number" name="hole_stroke_index" min="1" max="' + maxIndex + '" step="1"></td>' +
-      "</tr>"
-    );
-  }
-
-  function sync() {
-    var count = parseInt(countInput.value, 10);
-    if (!count || count < 1) count = 0;
-    if (count > 54) count = 54;
-    var maxIndex = count || 18;
-    var html = "";
-    for (var i = 1; i <= count; i += 1) html += rowHtml(i, maxIndex);
-    body.innerHTML = html;
-  }
-
-  countInput.addEventListener("change", sync);
-  countInput.addEventListener("input", sync);
-  sync();
-})();
-</script>
+<script src="{{ url_for('static', filename='course_fetch.js') }}"></script>
 {% endblock %}

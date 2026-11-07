@@ -1,0 +1,134 @@
+<div class="field">
+  <label for="name">Banenavn</label>
+  <input class="input" type="text" id="name" name="name" value="{{ form.name }}" required autocomplete="off">
+</div>
+<div class="field">
+  <label for="facility">Anlegg</label>
+  <input class="input" type="text" id="facility" name="facility" value="{{ form.facility }}" required autocomplete="off">
+</div>
+<div class="field">
+  <div class="form__actions">
+    <button class="btn btn--ghost" type="button" id="fetch-scorecard">Hent scorekort</button>
+    <button class="btn btn--ghost" type="button" id="fetch-ratings">Hent CR/Slope</button>
+  </div>
+  <p class="field__hint">Hent scorekort fyller par, index og meter fra klubbens scorekort. Hent CR/Slope fyller tee-stedene. Du kan endre en index etterpå, og resten av skjemaet blir stående.</p>
+  <p id="fetch-status" class="field__hint" role="status"></p>
+  <input type="hidden" id="hole_count" name="hole_count" value="{{ form.hole_count }}">
+</div>
+
+<div class="section__head">
+  <h2>Hull</h2>
+  <p>Par, index og meter kommer fra scorekortet. Meter er lengden fra lengste utslag.</p>
+</div>
+{% if not form.holes %}
+<p class="empty">Ingen hull ennå. Hent scorekort for å fylle par, index og meter.</p>
+{% endif %}
+<div id="hole-front-wrap" {% if not form.front_holes %}hidden{% endif %}>
+  <div class="section__head">
+    <h2>Hull 1–9</h2>
+  </div>
+  <div class="sheet-scroll">
+    <table class="sheet">
+      <thead>
+        <tr>
+          <th>Hull</th>
+          <th class="num">Par</th>
+          <th class="num">Index</th>
+          <th class="num">Meter</th>
+        </tr>
+      </thead>
+      <tbody id="hole-rows-front">
+        {% for hole in form.front_holes %}
+        <tr>
+          <td><input class="input" type="number" name="hole_number" min="1" max="54" step="1" value="{{ hole.number }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_par" min="3" max="6" step="1" value="{{ hole.par }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_stroke_index" min="1" max="{{ form.hole_count or 54 }}" step="1" value="{{ hole.stroke_index }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_meters" min="30" max="750" step="1" value="{{ hole.meters }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div id="hole-back-wrap" {% if not form.back_holes %}hidden{% endif %}>
+  <div class="section__head">
+    <h2>Hull 10–18</h2>
+  </div>
+  <div class="sheet-scroll">
+    <table class="sheet">
+      <thead>
+        <tr>
+          <th>Hull</th>
+          <th class="num">Par</th>
+          <th class="num">Index</th>
+          <th class="num">Meter</th>
+        </tr>
+      </thead>
+      <tbody id="hole-rows-back">
+        {% for hole in form.back_holes %}
+        <tr>
+          <td><input class="input" type="number" name="hole_number" min="1" max="54" step="1" value="{{ hole.number }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_par" min="3" max="6" step="1" value="{{ hole.par }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_stroke_index" min="1" max="{{ form.hole_count or 54 }}" step="1" value="{{ hole.stroke_index }}"></td>
+          <td class="num"><input class="input" type="number" name="hole_meters" min="30" max="750" step="1" value="{{ hole.meters }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section__head">
+  <h2>Tee-steder</h2>
+  <p>Mottatte slag (WHS): Handicap Index × (Slope / 113) + (CR − Par).</p>
+</div>
+{% if show_strokes and not form.tees|selectattr('name')|list %}
+<p class="empty">Ingen tee-steder ennå. Hent CR/Slope, eller fyll inn en rad under.</p>
+{% endif %}
+<div class="sheet-scroll">
+  <table class="sheet">
+    <thead>
+      <tr>
+        <th>Tee</th>
+        <th>Kjønn</th>
+        <th class="num">Par</th>
+        <th class="num">CR</th>
+        <th class="num">Slope</th>
+        {% if show_strokes %}
+        <th class="num">HCP 10</th>
+        <th class="num">HCP 20</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody id="tee-rows">
+      {% for tee in form.tees %}
+      <tr class="tee-row">
+        <td>
+          <input type="hidden" name="tee_id" value="{{ tee.tee_id }}">
+          <input class="input input--name" type="text" name="tee_name" value="{{ tee.name }}" autocomplete="off" {% if tee.tee_id or tee.name %}required{% endif %}>
+        </td>
+        <td>
+          <select class="input" name="tee_gender">
+            {% for g in tee_genders %}
+            <option value="{{ g }}" {% if tee.gender == g %}selected{% endif %}>{{ g }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td class="num">
+          <input class="input" type="number" name="tee_par" value="{{ tee.par }}" min="27" max="80" {% if tee.tee_id or tee.name %}required{% endif %}>
+        </td>
+        <td class="num">
+          <input class="input" type="number" name="tee_cr" value="{{ tee.course_rating }}" min="50" max="85" step="0.1" {% if tee.tee_id or tee.name %}required{% endif %}>
+        </td>
+        <td class="num">
+          <input class="input" type="number" name="tee_slope" value="{{ tee.slope_rating }}" min="55" max="155" {% if tee.tee_id or tee.name %}required{% endif %}>
+        </td>
+        {% if show_strokes %}
+        <td class="num tee-example">{% if tee.strokes_10 is not none %}{{ tee.strokes_10 }}{% else %}–{% endif %}</td>
+        <td class="num tee-example">{% if tee.strokes_20 is not none %}{{ tee.strokes_20 }}{% else %}–{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
