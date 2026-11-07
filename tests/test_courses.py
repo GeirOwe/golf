@@ -52,6 +52,8 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     assert form.status_code == 200
     assert 'name="hole_count"' in body
     assert "Hull (valgfritt)" in body
+    assert "value=\"' + number + '\"" in body
+    assert "for (var i = 1; i <= count; i += 1) html += rowHtml(i, maxIndex);" in body
 
     missing = client.post(
         "/baner/ny",
@@ -64,40 +66,47 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     assert missing.status_code == 200
     assert "Skriv antall hull." in missing.get_data(as_text=True)
 
+    # Browser-like: prefilled hullnummer 1..9 with blank par/handicap must not error.
     created = client.post(
         "/baner/ny",
         data={
             "name": "Verify Hills",
             "facility": "Verify Park",
-            "hole_count": "18",
+            "hole_count": "9",
+            "hole_number": [str(n) for n in range(1, 10)],
+            "hole_par": [""] * 9,
+            "hole_stroke_index": [""] * 9,
             **_tee_fields(),
         },
     )
     assert created.status_code == 302
     with app.app_context():
         course = GolfCourse.query.filter_by(name="Verify Hills").one()
-        assert course.hole_count == 18
+        assert course.hole_count == 9
         assert CourseHole.query.filter_by(course_id=course.id).count() == 0
         assert CourseTee.query.filter_by(course_id=course.id).count() == 1
         course_id = course.id
     page = client.get(f"/baner/{course_id}")
     shown = page.get_data(as_text=True)
     assert page.status_code == 200
-    assert 'value="18"' in shown
-    assert "<h2>Hull</h2>" not in shown
+    assert 'name="hole_count"' in shown
+    assert "Hull (valgfritt)" in shown
+    assert 'name="hole_number"' in shown or "hole_number" in shown
 
 
 def test_new_course_stores_optional_hole_details(tmp_path):
     client = _client(tmp_path)
+    numbers = [str(n) for n in range(1, 19)]
+    indexes = [str(n) for n in range(1, 19)]
     created = client.post(
         "/baner/ny",
         data={
             "name": "Verify Links",
             "facility": "Verify Bay",
             "hole_count": "18",
-            "hole_number": ["1", "2", "9", "10", "18"],
-            "hole_par": ["", "", "", "", ""],
-            "hole_stroke_index": ["", "", "", "", ""],
+            "hole_number": numbers,
+            "hole_par": [""] * 18,
+            "hole_stroke_index": indexes,
             **_tee_fields(),
         },
     )
@@ -109,23 +118,14 @@ def test_new_course_stores_optional_hole_details(tmp_path):
             hole.number: (hole.par, hole.stroke_index)
             for hole in CourseHole.query.filter_by(course_id=course.id).all()
         }
-        assert holes == {
-            1: (None, None),
-            2: (None, None),
-            9: (None, None),
-            10: (None, None),
-            18: (None, None),
-        }
+        assert holes == {n: (None, n) for n in range(1, 19)}
         course_id = course.id
     page = client.get(f"/baner/{course_id}").get_data(as_text=True)
-    assert "<h2>Hull</h2>" in page
+    assert "Hull (valgfritt)" in page
     assert "<h3>Hull 1–9</h3>" in page
     assert "<h3>Hull 10–18</h3>" in page
-    front, back = page.split("<h3>Hull 10–18</h3>", 1)
-    assert ">1<" in front and ">9<" in front
-    assert ">10<" not in front
-    assert ">10<" in back and ">18<" in back
-    assert ">1<" not in back.split("<tbody>", 1)[-1]
+    assert '"number": 1' in page and '"number": 18' in page
+    assert '"stroke_index": 1' in page and '"stroke_index": 18' in page
 
 
 def test_hole_par_sum_must_match_tee_par(tmp_path):
@@ -147,7 +147,7 @@ def test_hole_par_sum_must_match_tee_par(tmp_path):
     )
     assert mismatched.status_code == 200
     assert (
-        "Summen av par på hullene er 36, men tee «Gul» har par 72."
+        "Summen av par på hullene er 36, men ingen tee har det par-tallet (tees: 72)."
         in mismatched.get_data(as_text=True)
     )
     with app.app_context():
@@ -184,7 +184,7 @@ def test_new_course_rejects_invalid_optional_holes(tmp_path):
             "facility": "Verify Coast",
             "hole_count": "9",
             "hole_number": ["1", "1"],
-            "hole_par": ["", ""],
+            "hole_par": ["4", "5"],
             "hole_stroke_index": ["", ""],
             **_tee_fields(),
         },
@@ -198,7 +198,7 @@ def test_new_course_rejects_invalid_optional_holes(tmp_path):
             "facility": "Verify Coast",
             "hole_count": "9",
             "hole_number": ["10"],
-            "hole_par": [""],
+            "hole_par": ["4"],
             "hole_stroke_index": [""],
             **_tee_fields(),
         },
@@ -295,3 +295,126 @@ def test_missing_hole_count_column_is_added(tmp_path):
             for column in inspect(db.session.get_bind()).get_columns("golf_courses")
         }
     assert "hole_count" in columns
+
+
+def test_course_page_can_add_holes_after_create(tmp_path):
+    client = _client(tmp_path)
+    created = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Later",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            **_tee_fields(),
+        },
+    )
+    assert created.status_code == 302
+    with app.app_context():
+        course = GolfCourse.query.filter_by(name="Verify Later").one()
+        course_id = course.id
+        tee_id = course.tees[0].id
+
+    page = client.get(f"/baner/{course_id}")
+    body = page.get_data(as_text=True)
+    assert 'name="hole_par"' in body or "hole_par" in body
+    assert "readonly" not in body.split('name="hole_count"', 1)[-1][:80]
+
+    tee = {
+        "tee_id": [str(tee_id), "", "", ""],
+        "tee_name": ["Gul", "", "", ""],
+        "tee_gender": ["Herre", "Herre", "Herre", "Herre"],
+        "tee_par": ["36", "", "", ""],
+        "tee_cr": ["71.2", "", "", ""],
+        "tee_slope": ["125", "", "", ""],
+    }
+    saved = client.post(
+        f"/baner/{course_id}",
+        data={
+            "name": "Verify Later",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": [str(n) for n in range(1, 10)],
+            "hole_par": ["4"] * 9,
+            "hole_stroke_index": [""] * 9,
+            **tee,
+        },
+    )
+    assert saved.status_code == 302
+    with app.app_context():
+        holes = CourseHole.query.filter_by(course_id=course_id).order_by(CourseHole.number).all()
+        assert [hole.par for hole in holes] == [4] * 9
+
+
+def test_hole_par_sum_allows_differing_tees_and_rechecks_on_tee_edit(tmp_path):
+    client = _client(tmp_path)
+    numbers = [str(n) for n in range(1, 10)]
+    pars = ["4"] * 9
+    two_tees = {
+        "tee_id": ["", "", "", ""],
+        "tee_name": ["Gul", "Rød", "", ""],
+        "tee_gender": ["Herre", "Dame", "Herre", "Herre"],
+        "tee_par": ["36", "37", "", ""],
+        "tee_cr": ["71.2", "73.1", "", ""],
+        "tee_slope": ["125", "128", "", ""],
+    }
+    created = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Split",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": pars,
+            "hole_stroke_index": [""] * 9,
+            **two_tees,
+        },
+    )
+    assert created.status_code == 302
+    with app.app_context():
+        course = GolfCourse.query.filter_by(name="Verify Split").one()
+        course_id = course.id
+        tees = {tee.name: tee for tee in course.tees}
+        gul_id = tees["Gul"].id
+        rod_id = tees["Rød"].id
+
+    ok_edit = client.post(
+        f"/baner/{course_id}",
+        data={
+            "name": "Verify Split",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": pars,
+            "hole_stroke_index": [""] * 9,
+            "tee_id": [str(gul_id), str(rod_id), "", ""],
+            "tee_name": ["Gul", "Rød", "", ""],
+            "tee_gender": ["Herre", "Dame", "Herre", "Herre"],
+            "tee_par": ["36", "38", "", ""],
+            "tee_cr": ["71.2", "73.1", "", ""],
+            "tee_slope": ["125", "128", "", ""],
+        },
+    )
+    assert ok_edit.status_code == 302
+
+    drifted = client.post(
+        f"/baner/{course_id}",
+        data={
+            "name": "Verify Split",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": pars,
+            "hole_stroke_index": [""] * 9,
+            "tee_id": [str(gul_id), str(rod_id), "", ""],
+            "tee_name": ["Gul", "Rød", "", ""],
+            "tee_gender": ["Herre", "Dame", "Herre", "Herre"],
+            "tee_par": ["35", "38", "", ""],
+            "tee_cr": ["71.2", "73.1", "", ""],
+            "tee_slope": ["125", "128", "", ""],
+        },
+    )
+    assert drifted.status_code == 200
+    assert (
+        "Summen av par på hullene er 36, men ingen tee har det par-tallet (tees: 35, 38)."
+        in drifted.get_data(as_text=True)
+    )

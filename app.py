@@ -143,7 +143,8 @@ def _parse_hole_rows_from_form(form, hole_count):
         number_text = (number_raw or "").strip()
         par_text = (par_raw or "").strip()
         index_text = (index_raw or "").strip()
-        if not number_text and not par_text and not index_text:
+        # Prefill may send hole numbers alone; ignore until par or handicap is set.
+        if not par_text and not index_text:
             continue
         if not number_text:
             return None, "Hullnummer må fylles ut når du legger inn hull."
@@ -192,7 +193,11 @@ def _apply_hole_rows(course, rows):
 
 
 def _hole_par_sum_error(hole_rows, hole_count, tee_rows):
-    """When hole pars are entered, their sum must match each tee's total par."""
+    """When hole pars are entered, their sum must match at least one tee par.
+
+    Tees may differ (e.g. Herre 72 and Dame 73). Requiring every tee to match
+    would block saving hole pars entirely in that case.
+    """
     pars_by_number = {
         row["number"]: row["par"]
         for row in hole_rows
@@ -204,13 +209,39 @@ def _hole_par_sum_error(hole_rows, hole_count, tee_rows):
     if set(pars_by_number) != expected_numbers:
         return "Fyll inn par for alle hull, eller la alle stå tomme."
     total = sum(pars_by_number.values())
-    for tee in tee_rows:
-        if tee["par"] != total:
-            return (
-                f"Summen av par på hullene er {total}, "
-                f"men tee «{tee['name']}» har par {tee['par']}."
-            )
-    return None
+    tee_pars = {tee["par"] for tee in tee_rows}
+    if total in tee_pars:
+        return None
+    listed = ", ".join(str(par) for par in sorted(tee_pars))
+    return (
+        f"Summen av par på hullene er {total}, "
+        f"men ingen tee har det par-tallet (tees: {listed})."
+    )
+
+
+def _course_hole_errors(hole_rows, hole_count, tee_rows):
+    """Validate optional hole pars and stroke indexes against tees."""
+    par_sum_error = _hole_par_sum_error(hole_rows, hole_count, tee_rows)
+    if par_sum_error:
+        return par_sum_error
+    return _hole_stroke_index_error(hole_rows, hole_count)
+
+
+def _hole_editor_rows(course):
+    """One editable row per hole number up to hole_count."""
+    by_number = {hole.number: hole for hole in course.holes}
+    count = course.hole_count or 0
+    rows = []
+    for number in range(1, count + 1):
+        hole = by_number.get(number)
+        rows.append({
+            "number": number,
+            "par": "" if hole is None or hole.par is None else hole.par,
+            "stroke_index": (
+                "" if hole is None or hole.stroke_index is None else hole.stroke_index
+            ),
+        })
+    return rows
 
 
 def _hole_stroke_index_error(hole_rows, hole_count):
@@ -1373,12 +1404,9 @@ def add_golf_course():
         elif hole_error:
             error = hole_error
         else:
-            par_sum_error = _hole_par_sum_error(hole_rows, hole_count, rows)
-            index_error = _hole_stroke_index_error(hole_rows, hole_count)
-            if par_sum_error:
-                error = par_sum_error
-            elif index_error:
-                error = index_error
+            hole_detail_error = _course_hole_errors(hole_rows, hole_count, rows)
+            if hole_detail_error:
+                error = hole_detail_error
             else:
                 course = GolfCourse(name=name, facility=facility, hole_count=hole_count)
                 db.session.add(course)
@@ -1398,7 +1426,7 @@ def add_golf_course():
 
 @app.route("/baner/<int:course_id>", methods=["GET", "POST"])
 def view_golf_course(course_id):
-    """Show and edit course details and tee data."""
+    """Show and edit course details, tees, and optional hole data."""
     course = GolfCourse.get_by_id(course_id)
     if not course:
         return redirect(url_for("list_golf_courses"))
@@ -1409,30 +1437,43 @@ def view_golf_course(course_id):
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         facility = (request.form.get("facility") or "").strip()
+        hole_count, hole_count_error = _parse_hole_count(request.form.get("hole_count"))
         rows, parse_error = _parse_tee_rows_from_form(request.form)
+        hole_rows, hole_error = _parse_hole_rows_from_form(request.form, hole_count)
 
         if not name or not facility:
             error = "Banenavn og anlegg må fylles ut."
+        elif hole_count_error:
+            error = hole_count_error
         elif parse_error:
             error = parse_error
         elif not rows:
             error = "Banen må ha minst ett tee-sted."
+        elif hole_error:
+            error = hole_error
         else:
-            course.name = name
-            course.facility = facility
-            _apply_tee_rows(course, rows)
-            db.session.commit()
-            return redirect(url_for(
-                "view_golf_course",
-                course_id=course.id,
-                message="Banen er oppdatert.",
-            ))
+            hole_detail_error = _course_hole_errors(hole_rows, hole_count, rows)
+            if hole_detail_error:
+                error = hole_detail_error
+            else:
+                course.name = name
+                course.facility = facility
+                course.hole_count = hole_count
+                _apply_tee_rows(course, rows)
+                _apply_hole_rows(course, hole_rows)
+                db.session.commit()
+                return redirect(url_for(
+                    "view_golf_course",
+                    course_id=course.id,
+                    message="Banen er oppdatert.",
+                ))
 
     return render_template(
         "view_golf_course.html",
         course=course,
         course_handicap=course_handicap,
         tee_genders=TEE_GENDERS,
+        hole_rows=_hole_editor_rows(course),
         error=error,
         message=message,
     )
