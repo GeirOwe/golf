@@ -40,16 +40,19 @@
   </div>
   {% endif %}
   {% if trip.local_rules %}
-  <div class="section__head">
-    <h2>Lokale regler</h2>
-    <p>{{ trip.local_rules }}</p>
+  <div class="band">
+    <div class="section__head">
+      <h2>Lokale regler</h2>
+      <p>{{ trip.local_rules }}</p>
+    </div>
   </div>
   {% endif %}
-  <div class="section__head">
-    <h2>Runder</h2>
-  </div>
-  {% if trip.rounds %}
-  <ul class="entity-list">
+  <div class="band">
+    <div class="section__head">
+      <h2>Runder</h2>
+    </div>
+    {% if trip.rounds %}
+    <ul class="entity-list">
     {% for golf_round in trip.rounds %}
     <li>
       <div class="entity-row">
@@ -66,14 +69,16 @@
     </li>
     {% endfor %}
   </ul>
-  {% else %}
-  <p class="empty">Ingen golfrunder registrert ennå.</p>
-  {% endif %}
-  <div class="section__head">
-    <h2>Spillere</h2>
+    {% else %}
+    <p class="empty">Ingen golfrunder registrert ennå.</p>
+    {% endif %}
   </div>
-  {% if members %}
-  <ul class="entity-list">
+  <div class="band">
+    <div class="section__head">
+      <h2>Spillere</h2>
+    </div>
+    {% if members %}
+    <ul class="entity-list">
     {% for membership in members %}
     <li>
       <div class="entity-row">
@@ -88,12 +93,14 @@
     </li>
     {% endfor %}
   </ul>
-  {% endif %}
-  {% if available %}
-  <div class="section__head">
-    <h2>Ikke med</h2>
+    {% endif %}
   </div>
-  <ul class="entity-list">
+  {% if available %}
+  <div class="band">
+    <div class="section__head">
+      <h2>Ikke med</h2>
+    </div>
+    <ul class="entity-list">
     {% for player in available %}
     <li>
       <div class="entity-row">
@@ -107,9 +114,13 @@
       </div>
     </li>
     {% endfor %}
-  </ul>
+    </ul>
+  </div>
   {% endif %}
-  <form class="form" method="post" action="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">
+  <form class="form band" method="post" action="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">
+    <div class="section__head">
+      <h2>Opplysninger</h2>
+    </div>
     <div class="field">
       <label for="name">Navn</label>
       <input class="input" id="name" name="name" value="{{ name }}" autocomplete="off">

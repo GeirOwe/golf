@@ -29,6 +29,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
@@ -242,6 +246,43 @@ a:hover {
 .detail-head__desc {
   margin: 0;
   color: var(--ink-soft);
+}
+
+.band {
+  margin: 0 0 1.35rem;
+  padding: 1rem 1.1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.34);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.form > .band {
+  margin-bottom: 0;
+}
+
+.band > .section__head {
+  margin-bottom: 0.85rem;
+}
+
+.band .section__head h2 {
+  font-size: 1.45rem;
+}
+
+.section__head--sub {
+  margin-top: 1.25rem;
+  margin-bottom: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.band .section__head--sub h2 {
+  font-size: 1.2rem;
+  color: var(--ink-soft);
+}
+
+.band .empty {
+  padding: 0.15rem 0 0.05rem;
+  border: 0;
 }
 
 .detail-head__desc {
