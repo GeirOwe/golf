@@ -26,6 +26,6 @@ Preconditions:
 
 ## Gotchas
 
-- There is no `HCP oversikt`, `Spillere` heading, or `Spillernavn:` field.
+- An empty group has no `Spillere` heading. After the first player is saved, the group shows a `Spillere` heading and that player row. There is no `HCP oversikt` or `Spillernavn:` field.
 - The edit page has `Slett`. Do not submit it.
 - A handicap above 54 stays on the form with `Handicap kan ikke være høyere enn 54.0.`

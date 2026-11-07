@@ -17,7 +17,7 @@ Preconditions:
 
 - A group is already open, for example `/g/lisboa`.
 
-- Action: rename. Choose `Endre navn`. The heading is `Endre navn` and `Gruppenavn` holds the current name. Replace it with `Kyst` and choose `Lagre`. Result: the address is `/g/kyst`, and the heading and `document.title` are `Kyst`. Players and trips are still listed.
+- Action: rename. Choose `Endre navn`. The heading is `Endre navn` and `Gruppenavn` holds the current name. Replace it with `Kyst` and choose `Lagre`. Result: the address is `/g/kyst`, and the heading and `document.title` are `Kyst`. An empty group still says `Ingen turer ennå.` and has no player list.
 - Action: open the old address `/g/lisboa`. Result: the address becomes `/g/kyst`, and the heading and `document.title` are `Kyst`.
 
 ## Gotchas

@@ -26,6 +26,6 @@ Preconditions:
 
 ## Gotchas
 
-- Home is not `Fore. Out of bounds.` That sentence is the missing-page text.
+- A missing page has the title and heading `Fore!` and the sentence `Du er out of bounds - siden du leter etter finnes ikke.` Home stays `Lenken til gruppen`.
 - The document title is not `Hjem - Lisboa Høst`.
 - Creating a group does not print the URL. The address bar is the link.
