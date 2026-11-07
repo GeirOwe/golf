@@ -338,3 +338,64 @@ def test_live_bonus_follows_player_id_when_names_match(tmp_path):
         bonuses = _live_bonus(Trip.query.one())
     assert bonuses[high_id] == 4
     assert bonuses[low_id] == 3
+
+
+def test_training_round_stays_out_of_oom_and_finale(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    group = _open_group(client, "Fjord")
+    assert client.post(
+        group + "/players",
+        data={"name": "Ada", "handicap": "12.4"},
+    ).status_code == 302
+    with app.app_context():
+        player_id = Player.query.one().id
+    trip = client.post(
+        group + "/trips",
+        data={
+            "name": "Høst",
+            "destination_name": "Larvik",
+            "player_ids": [player_id],
+        },
+    ).headers["Location"]
+    course_id, tee_id = _course()
+    form = client.get(trip + "/rounds").get_data(as_text=True)
+    assert 'value="trening"' in form
+    assert ">Trening</option>" in form
+
+    saved = client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "trening"))
+    assert saved.status_code == 302
+    with app.app_context():
+        golf_round = Round.query.one()
+        assert golf_round.kind == "trening"
+        round_id = golf_round.id
+
+    listed = client.get(trip).get_data(as_text=True)
+    assert "· Trening" in listed
+    edit = client.get(f"{trip}/rounds/{round_id}").get_data(as_text=True)
+    assert 'value="trening" selected' in edit
+    scores = client.get(f"{trip}/rounds/{round_id}/scores").get_data(as_text=True)
+    assert "· Trening" in scores
+
+    client.post(f"{trip}/rounds/{round_id}/scores", data={f"score_{player_id}": "40"})
+    oom = client.get(trip + "/oom").get_data(as_text=True)
+    assert "Ingen scorer registrert ennå." in oom
+    assert 'class="num">40' not in oom
+    finale = client.get(trip + "/finale").get_data(as_text=True)
+    assert "Ingen finale ennå." in finale
+
+    counted = client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "oom"))
+    assert counted.status_code == 302
+    with app.app_context():
+        oom_id = Round.query.filter_by(kind="oom").one().id
+    client.post(f"{trip}/rounds/{oom_id}/scores", data={f"score_{player_id}": "22"})
+    table = client.get(trip + "/oom").get_data(as_text=True)
+    assert 'class="num">22' in table
+    assert 'class="num">40' not in table
+
+    client.post(f"{trip}/rounds/{round_id}", data=_round_fields(course_id, tee_id, "oom"))
+    brought_in = client.get(trip + "/oom").get_data(as_text=True)
+    assert 'class="num">62' in brought_in
+
+    rejected = client.post(trip + "/rounds", data=_round_fields(course_id, tee_id, "practice"))
+    assert "Velg OOM, trening eller finale." in rejected.get_data(as_text=True)

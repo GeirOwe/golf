@@ -1,0 +1,6 @@
+feature: trening
+entry: /g/fjord/trips/1/rounds
+url: http://127.0.0.1:61982
+run_id: 20261107183337-62115
+
+Ny runde Type has Trening. Saved Larvik 07.11 09:30 as Trening. Trip list shows · Trening. Score page shows · Trening and stored Ada 40. Tabell OOM says Ingen scorer registrert ennå. Finale says Ingen finale ennå. SQL: kind trening, score 40.
