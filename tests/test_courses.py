@@ -55,6 +55,7 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     assert "Hent scorekort" in body
     assert "Hent CR/Slope" in body
     assert 'data-remove-tee' in body
+    assert 'class="sheet__action"' in body
     assert 'id="rating-picker"' in body
     assert "Ta med valgte" in body
     assert 'id="par-summary"' in body

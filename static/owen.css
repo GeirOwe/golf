@@ -550,6 +550,24 @@ a.entity-row__main {
   z-index: 2;
 }
 
+.sheet th.sheet__action,
+.sheet td.sheet__action {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: #f3f2ee;
+  text-align: right;
+  border-left: 1px solid var(--line);
+}
+
+.sheet thead th.sheet__action {
+  z-index: 2;
+}
+
+.sheet td:first-child {
+  z-index: 2;
+}
+
 .sheet th {
   font-size: 0.72rem;
   font-weight: 600;

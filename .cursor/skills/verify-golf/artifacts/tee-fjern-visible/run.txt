@@ -1,0 +1,6 @@
+feature: tee-fjern-visible
+entry: /baner/ny
+url: http://127.0.0.1:63570
+run_id: 20261107185910-65754
+
+Saved Larvik with Rød Dame and Gul Herre. On the course page the tee table is wider than the column. With scrollLeft 0, all four Fjern buttons sit inside the visible sheet (left 1296, right 1350, container right 1358).
