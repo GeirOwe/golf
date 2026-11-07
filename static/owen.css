@@ -737,6 +737,23 @@ a.entity-row__main {
   background: var(--danger-soft);
 }
 
+.flash-stack--inline {
+  max-width: none;
+  margin: 0 0 1.25rem;
+  padding: 0;
+}
+
+.sheet .input {
+  width: 100%;
+  min-width: 4.25rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.92rem;
+}
+
+.sheet .input--name {
+  min-width: 5.5rem;
+}
+
 @keyframes rise {
   from {
     opacity: 0;

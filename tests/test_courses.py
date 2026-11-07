@@ -122,8 +122,9 @@ def test_new_course_stores_optional_hole_details(tmp_path):
         course_id = course.id
     page = client.get(f"/baner/{course_id}").get_data(as_text=True)
     assert "Hull (valgfritt)" in page
-    assert "<h3>Hull 1–9</h3>" in page
-    assert "<h3>Hull 10–18</h3>" in page
+    assert "<h2>Hull 1–9</h2>" in page
+    assert "<h2>Hull 10–18</h2>" in page
+    assert 'class="section__head"' in page
     assert '"number": 1' in page and '"number": 18' in page
     assert '"stroke_index": 1' in page and '"stroke_index": 18' in page
 
