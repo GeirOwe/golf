@@ -110,6 +110,8 @@ def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
     assert "2-2267057" in body
     assert "https://www.yr.no/nb/innhold/2-2267057/meteogram.svg" in body
     assert "Ingen golfrunder registrert ennå." in body
+    assert 'class="btn btn--primary" href="' + host + '/rounds">Ny runde</a>' in body
+    assert 'class="btn btn--primary" href="/baner/ny">Ny bane</a>' in body
 
     with app.app_context():
         cia_membership = TripPlayer.query.filter_by(player_id=players["Cia"].id).one_or_none()
