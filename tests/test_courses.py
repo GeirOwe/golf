@@ -11,8 +11,8 @@ os.environ["FLASK_SECRET_KEY"] = "verify-flask-secret"
 _DB_PATH = Path(tempfile.mkdtemp(prefix="golf-courses-")) / "golf.db"
 os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 
-from app import app, db
-from course_lookup import SOURCES
+from app import _par_summary, app, db
+from course_lookup import SOURCES, _SLOPE_DIRECTORY
 from database import CourseHole, CourseTee, GolfCourse
 
 
@@ -54,6 +54,9 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     assert 'id="hole_count"' in body
     assert "Hent scorekort" in body
     assert "Hent CR/Slope" in body
+    assert 'id="rating-picker"' in body
+    assert "Ta med valgte" in body
+    assert 'id="par-summary"' in body
     assert ">Antall hull<" not in body
 
     missing = client.post(
@@ -129,6 +132,23 @@ def test_new_course_stores_optional_hole_details(tmp_path):
     assert 'value="18"' in page
 
 
+def test_par_summary_splits_the_nines_and_names_a_different_tee():
+    holes = [{"number": n, "par": 5 if n == 1 else 4} for n in range(1, 19)]
+    tees = [
+        {"name": "63", "gender": "Herre", "par": 73},
+        {"name": "58", "gender": "Dame", "par": 74},
+        {"name": "", "gender": "Herre", "par": ""},
+    ]
+    summary = _par_summary(holes, tees)
+    assert summary["ok"] is True
+    assert summary["text"] == (
+        "Par 1–9 er 37, par 10–18 er 36, totalt 73. "
+        "Stemmer med tee-par 73. 58 Dame har par 74."
+    )
+    assert _par_summary([], tees)["text"] == ""
+    assert _par_summary([{"number": 1, "par": ""}], tees)["text"] == ""
+
+
 def test_hole_par_sum_must_match_tee_par(tmp_path):
     client = _client(tmp_path)
     numbers = [str(n) for n in range(1, 10)]
@@ -147,10 +167,12 @@ def test_hole_par_sum_must_match_tee_par(tmp_path):
         },
     )
     assert mismatched.status_code == 200
+    mismatched_body = mismatched.get_data(as_text=True)
     assert (
         "Summen av par på hullene er 36, men ingen tee har det par-tallet (tees: 72)."
-        in mismatched.get_data(as_text=True)
+        in mismatched_body
     )
+    assert "Par 1–9 er 36, totalt 36. Stemmer ikke med tee-par 72." in mismatched_body
     with app.app_context():
         assert GolfCourse.query.filter_by(name="Verify Par").count() == 0
 
@@ -420,6 +442,7 @@ def test_hole_par_sum_allows_differing_tees_and_rechecks_on_tee_edit(tmp_path):
         "Summen av par på hullene er 36, men ingen tee har det par-tallet (tees: 35, 38)."
         in drifted_body
     )
+    assert "Stemmer ikke med tee-par 35, 38." in drifted_body
     assert 'value="35"' in drifted_body
     assert 'value="Verify Split"' in drifted_body
 
@@ -472,6 +495,9 @@ def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_pa
         source["scorecard_url"]: scorecard,
         source["slope_url"]: slope_page,
         source["slope_base"] + "/script/aj_slopetabs?course=seasidebanen&ref=1": slope,
+        _SLOPE_DIRECTORY: (
+            '<a href="https://slope.no/baner/egersund-golfklubb/">Egersund Golfklubb</a>'
+        ),
     }
 
     def fake_get(url):
@@ -488,6 +514,7 @@ def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_pa
         assert unknown.status_code == 200
         assert unknown.json["ok"] is False
         assert "uendret" in unknown.json["error"]
+        assert "slope.no" in unknown.json["error"]
 
         card = client.post(
             "/baner/hent",
@@ -513,6 +540,87 @@ def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_pa
             "course_rating": 73.3,
             "slope_rating": 145,
         }]
+    finally:
+        app.config.pop("COURSE_HTTP_GET", None)
+
+
+def test_missing_club_page_falls_back_to_slope_no(tmp_path):
+    client = _client(tmp_path)
+    directory = (
+        '<a href="https://slope.no/baner/egersund-golfklubb/">Egersund Golfklubb</a>'
+        '<a href="https://slope.no/baner/preikestolen-golfklubb/">Preikestolen Golfklubb</a>'
+    )
+    card = """
+    <div class="ghs-sc-card" data-tee-id="1">
+      <span class="ghs-sc-teename">Herrer, tee Gul</span>
+      <table class="ghs-sc-table"><thead><tr>
+        <th>Hull</th><th>1</th><th>2</th>
+      </tr></thead><tbody>
+        <tr class="ghs-sc-par"><th>Par</th><td>4</td><td>3</td><td class="ghs-sc-sum">7</td></tr>
+        <tr class="ghs-sc-index"><th>Indeks</th><td>2</td><td>1</td><td class="ghs-sc-sum"></td></tr>
+        <tr class="ghs-sc-length"><th>Lengde</th><td>260</td><td>117</td><td class="ghs-sc-sum">377</td></tr>
+      </tbody></table>
+    </div>
+    <div class="ghs-sc-card" data-tee-id="2">
+      <span class="ghs-sc-teename">Herrer, tee Hvit</span>
+      <table class="ghs-sc-table"><thead><tr>
+        <th>Hull</th><th>1</th><th>2</th>
+      </tr></thead><tbody>
+        <tr class="ghs-sc-par"><th>Par</th><td>4</td><td>3</td><td class="ghs-sc-sum">7</td></tr>
+        <tr class="ghs-sc-index"><th>Indeks</th><td>2</td><td>1</td><td class="ghs-sc-sum"></td></tr>
+        <tr class="ghs-sc-length"><th>Lengde</th><td>275</td><td>142</td><td class="ghs-sc-sum">417</td></tr>
+      </tbody></table>
+    </div>
+    """
+    ratings = """
+    <select id="teeSelector">
+      <optgroup label="Menn">
+        <option data-slope="136" data-course="68.4" data-par="70">Hvit</option>
+        <option data-slope="124" data-course="65.7" data-par="70">Rød</option>
+      </optgroup>
+      <optgroup label="Damer">
+        <option data-slope="142" data-course="73.9" data-par="70">Hvit</option>
+      </optgroup>
+    </select>
+    """
+    pages = {
+        _SLOPE_DIRECTORY: directory,
+        "https://slope.no/baner/egersund-golfklubb/": card + ratings,
+    }
+
+    def fake_get(url):
+        if url not in pages:
+            raise AssertionError(url)
+        return pages[url]
+
+    app.config["COURSE_HTTP_GET"] = fake_get
+    try:
+        ambiguous = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Golf", "facility": ""},
+        )
+        assert ambiguous.json["ok"] is False
+
+        fetched = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Egersund", "facility": "Egersund Golfklubb"},
+        )
+        assert fetched.json["ok"] is True
+        assert fetched.json["meters_tee"] == "Hvit"
+        assert fetched.json["holes"][0]["meters"] == 275
+        assert "slope.no" in fetched.json["message"]
+        assert "rett det som ikke stemmer" in fetched.json["message"]
+
+        slope = client.post(
+            "/baner/hent",
+            json={"kind": "rating", "name": "Egersund", "facility": ""},
+        )
+        assert slope.json["ok"] is True
+        assert slope.json["tees"] == [
+            {"name": "Hvit", "gender": "Herre", "par": 70, "course_rating": 68.4, "slope_rating": 136},
+            {"name": "Rød", "gender": "Herre", "par": 70, "course_rating": 65.7, "slope_rating": 124},
+            {"name": "Hvit", "gender": "Dame", "par": 70, "course_rating": 73.9, "slope_rating": 142},
+        ]
     finally:
         app.config.pop("COURSE_HTTP_GET", None)
 

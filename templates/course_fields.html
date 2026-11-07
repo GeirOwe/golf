@@ -11,8 +11,17 @@
     <button class="btn btn--ghost" type="button" id="fetch-scorecard">Hent scorekort</button>
     <button class="btn btn--ghost" type="button" id="fetch-ratings">Hent CR/Slope</button>
   </div>
-  <p class="field__hint">Hent scorekort fyller par, index og meter fra klubbens scorekort. Hent CR/Slope fyller tee-stedene. Du kan endre en index etterpå, og resten av skjemaet blir stående.</p>
+  <p class="field__hint">Hent scorekort fyller par, index og meter. Hent CR/Slope viser tee-stedene, og du velger hvilke som skal med. Finner vi det ikke på klubbsiden, hentes det fra slope.no. Du kan endre det som ikke stemmer.</p>
   <p id="fetch-status" class="field__hint" role="status"></p>
+  <div id="rating-picker" class="field" hidden>
+    <p class="field-label">Velg tee-steder</p>
+    <p class="field__hint">Herrer er krysset av. Kryss av damer hvis de også skal med.</p>
+    <div id="rating-choices" class="choice-list"></div>
+    <div class="form__actions">
+      <button class="btn btn--primary btn--small" type="button" id="rating-apply">Ta med valgte</button>
+      <button class="btn btn--ghost btn--small" type="button" id="rating-cancel">Avbryt</button>
+    </div>
+  </div>
   <input type="hidden" id="hole_count" name="hole_count" value="{{ form.hole_count }}">
 </div>
 
@@ -77,6 +86,7 @@
     </table>
   </div>
 </div>
+<p id="par-summary" class="field__hint{% if form.par_summary.ok is false %} field__error{% endif %}" role="status"{% if not form.par_summary.text %} hidden{% endif %}>{{ form.par_summary.text }}</p>
 
 <div class="section__head">
   <h2>Tee-steder</h2>

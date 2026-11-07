@@ -1,0 +1,9 @@
+feature: par-summary
+entry: /baner/ny
+url: http://127.0.0.1:57181
+run_id: 20261107170005-53471
+title: Registrer bane
+
+Larvik scorecard: Par 1–9 er 36, par 10–18 er 36, totalt 72.
+After Hent CR/Slope and Ta med valgte (herrer): Stemmer med tee-par 72.
+Changing hole 1 par to 5 showed totalt 73 and Stemmer ikke med tee-par 72, then restored.
