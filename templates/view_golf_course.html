@@ -2,6 +2,7 @@
 
 {% block title %}{{ course.name }}{% endblock %}
 {% block brand %}{{ course.name }}{% endblock %}
+{% block brand_href %}{{ home_url }}{% endblock %}
 {% block content %}
 <section class="section">
   <p class="crumbs"><a href="{{ url_for('list_golf_courses') }}">Baner</a></p>
@@ -25,6 +26,7 @@
     {% include "course_fields.html" %}
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">Lagre endringer</button>
+      <a class="btn btn--ghost" href="{{ home_url }}">Hjem</a>
       <a class="btn btn--ghost" href="{{ url_for('list_golf_courses') }}">Tilbake</a>
     </div>
   </form>

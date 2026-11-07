@@ -2,6 +2,7 @@
 
 {% block title %}Baner{% endblock %}
 {% block brand %}Baner{% endblock %}
+{% block brand_href %}{{ home_url }}{% endblock %}
 {% block content %}
 <section class="section">
   <div class="section__head section__head--row">
@@ -10,6 +11,7 @@
       <p>Felles baner for alle grupper.</p>
     </div>
     <div class="section__actions">
+      <a class="btn btn--ghost" href="{{ home_url }}">Hjem</a>
       <a class="btn btn--primary" href="{{ url_for('add_golf_course') }}">Ny bane</a>
     </div>
   </div>

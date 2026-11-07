@@ -639,3 +639,44 @@ def test_missing_meters_column_is_added(tmp_path):
             for column in inspect(db.session.get_bind()).get_columns("course_holes")
         }
     assert "meters" in columns
+
+
+def test_course_home_returns_to_the_open_group_or_trip(tmp_path):
+    client = _client(tmp_path)
+    alone = client.get("/baner").get_data(as_text=True)
+    assert '<a class="brand" href="/">Baner</a>' in alone
+    assert 'href="/">Hjem</a>' in alone
+
+    client.post("/start", data={"secret": "verify-secret"})
+    group = client.post("/start/groups", data={"name": "Fjord"}).headers["Location"]
+    client.get(group)
+    listed = client.get("/baner").get_data(as_text=True)
+    assert f'<a class="brand" href="{group}">Baner</a>' in listed
+    assert f'href="{group}">Hjem</a>' in listed
+    assert '<a class="brand" href="/">Fjord</a>' in client.get(group).get_data(as_text=True)
+
+    created = client.post(
+        group + "/trips",
+        data={"name": "Høst", "destination_name": "Larvik"},
+    )
+    trip = created.headers["Location"]
+    client.get(trip)
+    with app.app_context():
+        course = GolfCourse(name="Larvik", facility="Larvik", hole_count=18)
+        db.session.add(course)
+        db.session.commit()
+        course_id = course.id
+
+    for path, brand in (("/baner/ny", "Baner"), (f"/baner/{course_id}", "Larvik")):
+        page = client.get(path).get_data(as_text=True)
+        assert f'<a class="brand" href="{trip}">{brand}</a>' in page
+        assert f'href="{trip}">Hjem</a>' in page
+
+    strokes = client.get("/baner/mottatte-slag").get_data(as_text=True)
+    assert f'<a class="brand" href="{trip}">Mottatte slag</a>' in strokes
+    assert f'href="{trip}">Hjem</a>' in strokes
+
+    client.get(group)
+    again = client.get("/baner").get_data(as_text=True)
+    assert f'href="{group}">Hjem</a>' in again
+    assert f'href="{trip}">Hjem</a>' not in again

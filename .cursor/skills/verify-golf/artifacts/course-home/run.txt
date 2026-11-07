@@ -1,0 +1,10 @@
+feature: course-home
+entry: /start
+url: http://127.0.0.1:58010
+run_id: 20261107171626-55377
+
+Opened group Fjord, created trip Høst, then Ny bane.
+Hjem on /baner/ny landed on /g/fjord/trips/1 (title Høst).
+Opened the group, then Hjem on /baner landed on /g/fjord (title Fjord).
+Reopened the trip. On /baner both the brand and Hjem pointed at /g/fjord/trips/1.
+Screenshot timed out.

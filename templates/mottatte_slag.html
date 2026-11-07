@@ -2,6 +2,7 @@
 
 {% block title %}Mottatte slag{% endblock %}
 {% block brand %}{% if group %}{{ group.name }}{% else %}Mottatte slag{% endif %}{% endblock %}
+{% block brand_href %}{% if group %}{{ url_for('home') }}{% else %}{{ home_url }}{% endif %}{% endblock %}
 {% block content %}
 <section class="section">
   {% if group %}
@@ -94,7 +95,7 @@
     {% if group %}
     <a class="btn btn--ghost" href="{{ url_for('show_group', token=group.slug) }}">Tilbake</a>
     {% else %}
-    <a class="btn btn--ghost" href="{{ url_for('home') }}">Hjem</a>
+    <a class="btn btn--ghost" href="{{ home_url }}">Hjem</a>
     {% endif %}
   </div>
 </section>
