@@ -1,0 +1,11 @@
+feature: course-fetch
+entry: /baner/ny
+url: http://127.0.0.1:56155
+run_id: 20261107164511-49965
+title: Registrer bane, then Larvik, then Baner
+
+Hent scorekort and Hent CR/Slope filled Larvik from larvikgolf.no.
+Hole 1: par 4, index 9, meters 338. Hole 18 meters 526.
+Tee 63 Herre par 72, CR 73.3, slope 145. Eleven tees saved.
+Duplicate index 17 showed "Index 17 er oppgitt mer enn én gang." and left name, holes, meters and tees in the form.
+After index 1 was set back to 9, Lagre bane opened /baner/1. Baner lists Larvik · 11 tee.
