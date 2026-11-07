@@ -1297,8 +1297,8 @@ def _chosen_kind(trip, current):
     posted = (request.form.get("kind") or "").strip()
     if posted == "":
         return (current.kind if current is not None else "oom"), None
-    if posted not in ("oom", "finale"):
-        return "oom", "Velg OOM eller finale."
+    if posted not in ("oom", "finale", "trening"):
+        return "oom", "Velg OOM, trening eller finale."
     other = _finale_round(trip)
     if posted == "finale" and other is not None and (current is None or other.id != current.id):
         return posted, "Turen har allerede en finale."

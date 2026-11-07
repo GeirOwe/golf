@@ -10,7 +10,7 @@
   </p>
   <div class="section__head">
     <h1>Registrer score</h1>
-    <p>{{ golf_round.course.name }} · {{ golf_round.display_date }} · {{ golf_round.tee_time }}</p>
+    <p>{{ golf_round.course.name }} · {{ golf_round.display_date }} · {{ golf_round.tee_time }}{% if golf_round.kind == 'trening' %} · Trening{% endif %}</p>
   </div>
   <form class="form" method="post" action="{{ url_for('edit_scores', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">
     {% for row in rows %}

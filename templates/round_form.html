@@ -42,7 +42,8 @@
     <div class="field">
       <label for="kind">Type</label>
       <select class="input" id="kind" name="kind">
-        <option value="oom"{% if kind != 'finale' %} selected{% endif %}>OOM</option>
+        <option value="oom"{% if kind == 'oom' %} selected{% endif %}>OOM</option>
+        <option value="trening"{% if kind == 'trening' %} selected{% endif %}>Trening</option>
         <option value="finale"{% if kind == 'finale' %} selected{% endif %}>Finale</option>
       </select>
     </div>
