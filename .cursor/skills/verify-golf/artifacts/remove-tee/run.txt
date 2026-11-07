@@ -1,0 +1,6 @@
+feature: remove-tee
+entry: /baner/ny
+url: http://127.0.0.1:61680
+run_id: 20261107182841-61436
+
+Registered Verify Fjern with Gul Herre and Rød Dame. Fjern removed Rød. Lagre endringer left only Gul Herre. SQL: name Gul, gender Herre.

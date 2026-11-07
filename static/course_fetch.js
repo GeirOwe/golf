@@ -90,6 +90,20 @@
     });
   }
 
+  function clearTee(row) {
+    field(row, "tee_id").value = "";
+    field(row, "tee_name").value = "";
+    field(row, "tee_name").removeAttribute("required");
+    field(row, "tee_gender").value = "Herre";
+    ["tee_par", "tee_cr", "tee_slope"].forEach(function (name) {
+      field(row, name).value = "";
+      field(row, name).removeAttribute("required");
+    });
+    row.querySelectorAll(".tee-example").forEach(function (cell) {
+      cell.textContent = "–";
+    });
+  }
+
   function blankTee(row) {
     var copy = row.cloneNode(true);
     field(copy, "tee_id").value = "";
@@ -283,6 +297,19 @@
     }).then(function () {
       scoreButton.disabled = false;
       ratingButton.disabled = false;
+    });
+  }
+
+  var teeRows = document.querySelector("#tee-rows");
+  if (teeRows) {
+    teeRows.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-remove-tee]");
+      if (!button) return;
+      var row = button.closest(".tee-row");
+      if (!row) return;
+      if (teeRows.querySelectorAll(".tee-row").length <= 1) clearTee(row);
+      else row.remove();
+      updateParSums();
     });
   }
 

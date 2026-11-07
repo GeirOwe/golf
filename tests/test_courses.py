@@ -54,6 +54,7 @@ def test_new_course_requires_hole_count_and_allows_skipping_hole_details(tmp_pat
     assert 'id="hole_count"' in body
     assert "Hent scorekort" in body
     assert "Hent CR/Slope" in body
+    assert 'data-remove-tee' in body
     assert 'id="rating-picker"' in body
     assert "Ta med valgte" in body
     assert 'id="par-summary"' in body
@@ -445,6 +446,93 @@ def test_hole_par_sum_allows_differing_tees_and_rechecks_on_tee_edit(tmp_path):
     assert "Stemmer ikke med tee-par 35, 38." in drifted_body
     assert 'value="35"' in drifted_body
     assert 'value="Verify Split"' in drifted_body
+
+
+def test_unused_tee_can_be_removed_and_a_used_tee_stays(tmp_path):
+    from datetime import date
+
+    from database import Group, Round, Trip
+
+    client = _client(tmp_path)
+    created = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Tees",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "tee_id": ["", ""],
+            "tee_name": ["Gul", "Rød"],
+            "tee_gender": ["Herre", "Dame"],
+            "tee_par": ["36", "36"],
+            "tee_cr": ["71.2", "73.1"],
+            "tee_slope": ["125", "128"],
+        },
+    )
+    assert created.status_code == 302
+    with app.app_context():
+        course = GolfCourse.query.filter_by(name="Verify Tees").one()
+        course_id = course.id
+        tees = {tee.name: tee.id for tee in course.tees}
+        gul_id = tees["Gul"]
+        rod_id = tees["Rød"]
+
+    page = client.get(f"/baner/{course_id}").get_data(as_text=True)
+    assert 'data-remove-tee' in page
+    assert page.count(">Fjern<") >= 2
+
+    removed = client.post(
+        f"/baner/{course_id}",
+        data={
+            "name": "Verify Tees",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "tee_id": [str(gul_id)],
+            "tee_name": ["Gul"],
+            "tee_gender": ["Herre"],
+            "tee_par": ["36"],
+            "tee_cr": ["71.2"],
+            "tee_slope": ["125"],
+        },
+    )
+    assert removed.status_code == 302
+    with app.app_context():
+        left = CourseTee.query.filter_by(course_id=course_id).all()
+        assert [tee.name for tee in left] == ["Gul"]
+        group = Group(name="Fjord", slug="fjord-tees", token="tee-token")
+        trip = Trip(group=group, name="Høst", destination_name="Larvik")
+        db.session.add(Round(
+            trip=trip,
+            course_id=course_id,
+            tee_id=gul_id,
+            play_date=date(2026, 11, 7),
+            tee_time="09:00",
+            kind="oom",
+        ))
+        db.session.commit()
+
+    blocked = client.post(
+        f"/baner/{course_id}",
+        data={
+            "name": "Verify Tees",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "tee_id": [""],
+            "tee_name": ["Blå"],
+            "tee_gender": ["Herre"],
+            "tee_par": ["36"],
+            "tee_cr": ["70.0"],
+            "tee_slope": ["120"],
+        },
+    )
+    assert blocked.status_code == 200
+    body = blocked.get_data(as_text=True)
+    assert "Kan ikke slette Gul Herre. Tee-stedet er brukt i en runde." in body
+    assert 'value="Gul"' in body
+    assert f'value="{gul_id}"' in body
+    with app.app_context():
+        names = {tee.name for tee in CourseTee.query.filter_by(course_id=course_id)}
+        assert names == {"Gul"}
+        assert Round.query.filter_by(tee_id=gul_id).count() == 1
 
 
 def test_invalid_index_keeps_the_rest_of_the_form(tmp_path):

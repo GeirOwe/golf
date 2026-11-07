@@ -108,6 +108,7 @@
         <th class="num">HCP 10</th>
         <th class="num">HCP 20</th>
         {% endif %}
+        <th></th>
       </tr>
     </thead>
     <tbody id="tee-rows">
@@ -137,6 +138,9 @@
         <td class="num tee-example">{% if tee.strokes_10 is not none %}{{ tee.strokes_10 }}{% else %}–{% endif %}</td>
         <td class="num tee-example">{% if tee.strokes_20 is not none %}{{ tee.strokes_20 }}{% else %}–{% endif %}</td>
         {% endif %}
+        <td>
+          <button class="btn btn--danger btn--small" type="button" data-remove-tee>Fjern</button>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

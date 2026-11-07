@@ -78,7 +78,11 @@ def _parse_tee_rows_from_form(form):
 
 
 def _apply_tee_rows(course, rows):
-    """Create or update tees on a course from parsed rows."""
+    """Create, update, or remove tees. A tee omitted from the form is deleted."""
+    kept = {row["tee_id"] for row in rows if row["tee_id"]}
+    for tee in list(course.tees):
+        if tee.id not in kept:
+            db.session.delete(tee)
     for row in rows:
         if row["tee_id"]:
             tee = CourseTee.query.filter_by(id=row["tee_id"], course_id=course.id).first()
@@ -98,6 +102,65 @@ def _apply_tee_rows(course, rows):
                 course_rating=row["course_rating"],
                 slope_rating=row["slope_rating"],
             ))
+
+
+def _tees_used_by_rounds(course, rows):
+    """Saved tees missing from the form that a round still points at."""
+    kept = {row["tee_id"] for row in rows if row["tee_id"]}
+    removed = [tee for tee in course.tees if tee.id not in kept]
+    if not removed:
+        return []
+    used = {
+        tee_id
+        for (tee_id,) in db.session.query(Round.tee_id).filter(
+            Round.tee_id.in_([tee.id for tee in removed])
+        )
+    }
+    return [tee for tee in removed if tee.id in used]
+
+
+def _tee_in_use_message(tees):
+    labels = [f"{tee.name} {tee.gender}" for tee in tees]
+    if len(labels) == 1:
+        named = labels[0]
+        ending = "Tee-stedet er brukt i en runde."
+    else:
+        named = ", ".join(labels[:-1]) + " og " + labels[-1]
+        ending = "Tee-stedene er brukt i en runde."
+    return f"Kan ikke slette {named}. {ending}"
+
+
+def _tee_form_row(tee):
+    strokes_10, strokes_20 = _example_strokes(
+        tee.par, tee.course_rating, tee.slope_rating
+    )
+    return {
+        "tee_id": tee.id,
+        "name": tee.name,
+        "gender": tee.gender,
+        "par": tee.par,
+        "course_rating": tee.course_rating,
+        "slope_rating": tee.slope_rating,
+        "strokes_10": strokes_10,
+        "strokes_20": strokes_20,
+    }
+
+
+def _restore_tees(form, tees):
+    """Put tees the save refused to delete back into the redisplayed form."""
+    present = {str(row.get("tee_id")) for row in form["tees"]}
+    restored = [_tee_form_row(tee) for tee in tees if str(tee.id) not in present]
+    if not restored:
+        return
+    named = []
+    blanks = []
+    for row in form["tees"]:
+        if str(row.get("name") or "").strip() or str(row.get("tee_id") or "").strip():
+            named.append(row)
+        else:
+            blanks.append(row)
+    form["tees"] = named + restored + (blanks or [_blank_tee()])
+    form["par_summary"] = _par_summary(form["holes"], form["tees"])
 
 
 def _parse_hole_count(raw):
@@ -1745,8 +1808,14 @@ def view_golf_course(course_id):
         elif hole_error:
             error = hole_error
         else:
-            hole_detail_error = _course_hole_errors(hole_rows, hole_count, rows)
-            if hole_detail_error:
+            blocked = _tees_used_by_rounds(course, rows)
+            hole_detail_error = None if blocked else _course_hole_errors(
+                hole_rows, hole_count, rows
+            )
+            if blocked:
+                error = _tee_in_use_message(blocked)
+                _restore_tees(form, blocked)
+            elif hole_detail_error:
                 error = hole_detail_error
             else:
                 course.name = name
