@@ -1,7 +1,8 @@
-"""Fetch scorecard and tee ratings from a club's own published pages.
+"""Fetch scorecard and tee ratings from a club page, then from slope.no.
 
 Only hosts listed below are contacted. A page that cannot be parsed is
-rejected, so the form is never filled with guessed numbers.
+rejected, so the form is never filled with guessed numbers. slope.no is used
+when the club page has no readable card, and the message says so.
 """
 
 import html
@@ -44,6 +45,33 @@ _TABLE = re.compile(r'<table class="scorecard[^"]*">(.*?)</table>', re.I | re.S)
 _SELTEE = re.compile(r"<a\b[^>]*class=\"[^\"]*\bseltee\b[^\"]*\"[^>]*>.*?</a>", re.I | re.S)
 _ATTR = re.compile(r'(\w[\w-]*)="([^"]*)"')
 _GENDER = {"herre": "Herre", "herrer": "Herre", "dame": "Dame", "damer": "Dame"}
+_SLOPE_GENDER = {
+    "menn": "Herre",
+    "herrer": "Herre",
+    "men": "Herre",
+    "damer": "Dame",
+    "kvinner": "Dame",
+    "women": "Dame",
+}
+_SLOPE_DIRECTORY = "https://slope.no/baner/"
+_SLOPE_HOSTS = ("slope.no",)
+_SLOPE_SKIP = {"kart", "greenfee"}
+_NAME_STOP = {
+    "golf",
+    "golfklubb",
+    "golfklub",
+    "golfklubben",
+    "golfclub",
+    "klubb",
+    "bane",
+    "banen",
+    "course",
+    "club",
+}
+_COURSE_LINK = re.compile(
+    r'href="(https://slope\.no/baner/([a-z0-9-]+)/)"[^>]*>([^<]+)</a>',
+    re.I,
+)
 _MAX_BYTES = 1_500_000
 
 
@@ -64,7 +92,63 @@ def fetch_ratings(name, facility, http_get=None):
 
 
 def _fetch_scorecard(name, facility, http_get):
-    source = _source_for(name, facility)
+    _require_query(name, facility)
+    source = _club_source(name, facility)
+    club_error = None
+    if source is not None:
+        try:
+            return _club_scorecard(source, name, facility, http_get)
+        except LookupError as exc:
+            club_error = exc
+    try:
+        return _slope_scorecard(name, facility, http_get)
+    except LookupError:
+        if club_error is not None:
+            raise LookupError(
+                "Fant ikke scorekortet på klubbsiden eller på slope.no. "
+                "Skjemaet er uendret."
+            ) from club_error
+        raise
+
+
+def _fetch_ratings(name, facility, http_get):
+    _require_query(name, facility)
+    source = _club_source(name, facility)
+    club_error = None
+    if source is not None:
+        try:
+            return _club_ratings(source, http_get)
+        except LookupError as exc:
+            club_error = exc
+    try:
+        return _slope_ratings(name, facility, http_get)
+    except LookupError:
+        if club_error is not None:
+            raise LookupError(
+                "Fant ikke CR og slope på klubbsiden eller på slope.no. "
+                "Skjemaet er uendret."
+            ) from club_error
+        raise
+
+
+def _require_query(name, facility):
+    if not f"{name or ''} {facility or ''}".strip():
+        raise LookupError("Skriv banenavn eller anlegg først.")
+
+
+def _club_source(name, facility):
+    hay = f" {_norm(f'{name or ''} {facility or ''}')} "
+    hits = [
+        source
+        for source in SOURCES
+        if any(f" {_norm(alias)} " in hay for alias in source["aliases"])
+    ]
+    if len(hits) > 1:
+        raise LookupError("Navnet passer flere klubber. Skjemaet er uendret.")
+    return hits[0] if hits else None
+
+
+def _club_scorecard(source, name, facility, http_get):
     page = _get(source["scorecard_url"], source["hosts"], http_get)
     card = _choose_scorecard(page, f"{name} {facility}")
     if card is None:
@@ -85,8 +169,7 @@ def _fetch_scorecard(name, facility, http_get):
     }
 
 
-def _fetch_ratings(name, facility, http_get):
-    source = _source_for(name, facility)
+def _club_ratings(source, http_get):
     page = _get(source["slope_url"], source["hosts"], http_get)
     listed = _slope_tee_links(page)
     if not listed:
@@ -119,23 +202,175 @@ def _fetch_ratings(name, facility, http_get):
     }
 
 
-def _source_for(name, facility):
-    text = f"{name or ''} {facility or ''}".strip()
-    if not text:
-        raise LookupError("Skriv banenavn eller anlegg først.")
-    hay = f" {_norm(text)} "
-    hits = [
-        source
-        for source in SOURCES
-        if any(f" {_norm(alias)} " in hay for alias in source["aliases"])
-    ]
-    if len(hits) == 1:
-        return hits[0]
+def _slope_course(name, facility, http_get):
+    page = _get(_SLOPE_DIRECTORY, _SLOPE_HOSTS, http_get, who="slope.no")
+    query = _name_tokens(f"{name or ''} {facility or ''}")
+    hits = []
+    seen = set()
+    for url, slug, title in _COURSE_LINK.findall(page):
+        if slug in _SLOPE_SKIP or url in seen:
+            continue
+        seen.add(url)
+        title = html.unescape(title).strip()
+        tokens = _name_tokens(title)
+        if tokens and all(token in query for token in tokens):
+            hits.append({"name": title, "url": url})
     if len(hits) > 1:
-        raise LookupError("Navnet passer flere klubber. Skjemaet er uendret.")
-    raise LookupError(
-        "Fant ikke et verifisert scorekort for denne banen. Skjemaet er uendret."
-    )
+        raise LookupError("Navnet passer flere baner på slope.no. Skjemaet er uendret.")
+    if not hits:
+        raise LookupError(
+            "Fant ikke banen på klubbsiden eller på slope.no. Skjemaet er uendret."
+        )
+    return hits[0]
+
+
+def _name_tokens(text):
+    return [
+        token
+        for token in _norm(text).split()
+        if len(token) >= 4 and token not in _NAME_STOP
+    ]
+
+
+def _slope_scorecard(name, facility, http_get):
+    course = _slope_course(name, facility, http_get)
+    page = _get(course["url"], _SLOPE_HOSTS, http_get, who="slope.no")
+    card = _choose_slope_card(page)
+    if card is None:
+        raise LookupError("Scorekortet fra slope.no kunne ikke leses. Skjemaet er uendret.")
+    return {
+        "ok": True,
+        "source": "slope.no",
+        "url": course["url"],
+        "meters_tee": card["tee"],
+        "hole_count": len(card["holes"]),
+        "holes": card["holes"],
+        "message": (
+            f"Scorekort fra slope.no ({course['name']}). "
+            f"Meter er fra utslag {card['tee']}. "
+            "Dette er ikke klubbens egen side, så rett det som ikke stemmer."
+        ),
+    }
+
+
+def _slope_ratings(name, facility, http_get):
+    course = _slope_course(name, facility, http_get)
+    page = _get(course["url"], _SLOPE_HOSTS, http_get, who="slope.no")
+    tees = _parse_slope_no_ratings(page)
+    if not tees:
+        raise LookupError("CR og slope fra slope.no kunne ikke leses. Skjemaet er uendret.")
+    return {
+        "ok": True,
+        "source": "slope.no",
+        "url": course["url"],
+        "tees": tees,
+        "message": (
+            f"CR og slope fra slope.no ({course['name']}). "
+            "Dette er ikke klubbens egen side, så rett det som ikke stemmer."
+        ),
+    }
+
+
+def _choose_slope_card(page):
+    cards = []
+    for part in re.split(r'<div class="ghs-sc-card"', page)[1:]:
+        head = re.split(r"<h2\b", part, maxsplit=1)[0]
+        name_match = re.search(r'ghs-sc-teename">([^<]+)', head)
+        if name_match is None:
+            continue
+        label = html.unescape(name_match.group(1)).strip()
+        holes = []
+        broken = False
+        for table in re.findall(r'<table class="ghs-sc-table">(.*?)</table>', head, re.S):
+            numbers = [int(number) for number in re.findall(r"<th[^>]*>\s*(\d+)\s*</th>", table)]
+            pars = _slope_row(table, "ghs-sc-par")
+            indexes = _slope_row(table, "ghs-sc-index")
+            meters = _slope_row(table, "ghs-sc-length")
+            rows = (pars, indexes, meters)
+            if not numbers or any(row is None or len(row) != len(numbers) for row in rows):
+                broken = True
+                break
+            for number, par, stroke_index, length in zip(numbers, pars, indexes, meters):
+                holes.append({
+                    "number": number,
+                    "par": par,
+                    "stroke_index": stroke_index,
+                    "meters": length,
+                })
+        if broken or not _consistent(holes):
+            continue
+        tee_name = re.sub(
+            r"^(?:herrer|damer|menn|kvinner)\s*,?\s*tee\s+",
+            "",
+            label,
+            flags=re.I,
+        ).strip()
+        cards.append({"tee": tee_name or label, "holes": holes})
+    if not cards:
+        return None
+    return max(cards, key=lambda card: sum(hole["meters"] for hole in card["holes"]))
+
+
+def _slope_row(table, klass):
+    match = re.search(rf'<tr class="{klass}".*?</tr>', table, re.S)
+    if match is None:
+        return None
+    values = []
+    for attrs, raw in re.findall(r"<td([^>]*)>(.*?)</td>", match.group(0), re.S):
+        if "ghs-sc-sum" in attrs:
+            continue
+        text = html.unescape(_TAG.sub("", raw)).replace("\xa0", "").replace(" ", "")
+        if not text.isdigit():
+            return None
+        values.append(int(text))
+    return values
+
+
+def _parse_slope_no_ratings(page):
+    tees = []
+    seen = set()
+    for attrs, inner in re.findall(r"<optgroup\b([^>]*)>(.*?)</optgroup>", page, re.S | re.I):
+        label = dict(_ATTR.findall(attrs)).get("label", "")
+        gender = _SLOPE_GENDER.get(label.strip().lower())
+        if gender is None:
+            gender = _SLOPE_GENDER.get(dict(_ATTR.findall(attrs)).get("data-gender", "").lower())
+        if gender is None:
+            continue
+        for option_attrs, raw_name in re.findall(r"<option\b([^>]*)>(.*?)</option>", inner, re.S | re.I):
+            option = dict(_ATTR.findall(option_attrs))
+            name = html.unescape(_TAG.sub("", raw_name)).strip()
+            course_rating = _rating(option.get("data-course", ""))
+            slope = _whole(option.get("data-slope", ""))
+            tee_par = _whole(option.get("data-par", ""))
+            if not name or course_rating is None or slope is None or tee_par is None:
+                continue
+            if not (50 <= course_rating <= 85 and 55 <= slope <= 155 and 27 <= tee_par <= 80):
+                continue
+            key = (name, gender)
+            if key in seen:
+                continue
+            seen.add(key)
+            tees.append({
+                "name": name,
+                "gender": gender,
+                "par": tee_par,
+                "course_rating": course_rating,
+                "slope_rating": slope,
+            })
+    return tees
+
+
+def _rating(raw):
+    text = (raw or "").strip().replace(",", ".")
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _whole(raw):
+    text = (raw or "").strip()
+    return int(text) if text.isdigit() else None
 
 
 def _norm(text):
@@ -157,7 +392,7 @@ def _allowed(host, hosts):
     return bare in {item.lower().removeprefix("www.") for item in hosts}
 
 
-def _get(url, hosts, http_get):
+def _get(url, hosts, http_get, who="klubben"):
     if not _allowed(_host(url), hosts):
         raise LookupError("Ugyldig kilde.")
     if http_get is not None:
@@ -170,11 +405,11 @@ def _get(url, hosts, http_get):
         )
         response.raise_for_status()
     except requests.RequestException as exc:
-        raise LookupError("Klarte ikke å hente siden til klubben. Skjemaet er uendret.") from exc
+        raise LookupError(f"Klarte ikke å hente siden til {who}. Skjemaet er uendret.") from exc
     if not _allowed(_host(response.url), hosts):
-        raise LookupError("Klubbsiden sendte oss et annet sted. Skjemaet er uendret.")
+        raise LookupError(f"Siden til {who} sendte oss et annet sted. Skjemaet er uendret.")
     if len(response.content) > _MAX_BYTES:
-        raise LookupError("Svaret fra klubben var for stort. Skjemaet er uendret.")
+        raise LookupError(f"Svaret fra {who} var for stort. Skjemaet er uendret.")
     response.encoding = response.encoding or "utf-8"
     return response.text
 

@@ -636,6 +636,17 @@ a.entity-row__main {
   accent-color: var(--accent);
 }
 
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.choice-list .check-row {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
 .form__actions {
   display: flex;
   flex-wrap: wrap;

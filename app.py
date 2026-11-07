@@ -277,6 +277,91 @@ def _split_holes(holes):
     return front, back
 
 
+def _summary_text(raw):
+    if raw is None:
+        return ""
+    return str(raw).strip()
+
+
+def _tee_par_differences(differing):
+    """One sentence for tee pars that do not match the hole total."""
+    grouped = []
+    index_by_par = {}
+    for label, par in differing:
+        if par not in index_by_par:
+            index_by_par[par] = len(grouped)
+            grouped.append((par, []))
+        grouped[index_by_par[par]][1].append(label)
+    pieces = []
+    for par, labels in grouped:
+        pieces.append(f"{', '.join(labels)} har par {par}")
+    return ". ".join(pieces) + "."
+
+
+def _par_summary(holes, tees):
+    """Sum hole par by nine and compare the total with registered tee par."""
+    groups = {"front": [], "back": [], "extra": []}
+    incomplete = False
+    seen = False
+    for hole in holes:
+        number, _ = _parse_optional_int(_summary_text(hole.get("number")), "hull")
+        par, _ = _parse_optional_int(_summary_text(hole.get("par")), "par")
+        if number is None and par is None:
+            continue
+        seen = True
+        if number is None or par is None:
+            incomplete = True
+            continue
+        if number <= 9:
+            groups["front"].append(par)
+        elif number <= 18:
+            groups["back"].append(par)
+        else:
+            groups["extra"].append(par)
+    if not seen or incomplete:
+        return {"text": "", "ok": None}
+
+    bits = []
+    if groups["front"]:
+        bits.append(f"par 1–9 er {sum(groups['front'])}")
+    if groups["back"]:
+        bits.append(f"par 10–18 er {sum(groups['back'])}")
+    total = sum(groups["front"]) + sum(groups["back"]) + sum(groups["extra"])
+    bits.append(f"totalt {total}")
+    text = ", ".join(bits)
+    text = text[:1].upper() + text[1:] + "."
+
+    tee_items = []
+    for tee in tees:
+        par, _ = _parse_optional_int(_summary_text(tee.get("par")), "par")
+        if par is None:
+            continue
+        name = _summary_text(tee.get("name"))
+        gender = _summary_text(tee.get("gender"))
+        if name and gender:
+            label = f"{name} {gender}"
+        elif name:
+            label = name
+        else:
+            label = "tee"
+        tee_items.append((label, par))
+
+    ok = None
+    if tee_items:
+        differing = [(label, par) for label, par in tee_items if par != total]
+        if any(par == total for _, par in tee_items) and not differing:
+            text += f" Stemmer med tee-par {total}."
+            ok = True
+        elif any(par == total for _, par in tee_items):
+            text += f" Stemmer med tee-par {total}. {_tee_par_differences(differing)}"
+            ok = True
+        else:
+            listed = ", ".join(str(par) for par in sorted({par for _, par in tee_items}))
+            text += f" Stemmer ikke med tee-par {listed}."
+            ok = False
+    return {"text": text, "ok": ok}
+
+
 def _form_state(name, facility, hole_count, holes, tees):
     front, back = _split_holes(holes)
     return {
@@ -287,6 +372,7 @@ def _form_state(name, facility, hole_count, holes, tees):
         "front_holes": front,
         "back_holes": back,
         "tees": tees,
+        "par_summary": _par_summary(holes, tees),
     }
 
 
