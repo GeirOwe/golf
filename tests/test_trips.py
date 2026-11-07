@@ -366,3 +366,35 @@ def test_leaving_a_trip_removes_that_players_scores(tmp_path):
     rejoined = client.get(trip + "/oom").get_data(as_text=True)
     assert "30" not in rejoined
     assert "36" in rejoined
+
+
+def test_new_round_defaults_to_the_mens_tee_when_both_genders_exist(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    group = _open_group(client, "Fjord")
+    trip = client.post(
+        group + "/trips",
+        data={"name": "Høst", "destination_name": "Larvik"},
+    ).headers["Location"]
+    with app.app_context():
+        course = GolfCourse(name="Larvik", facility="Larvik gk")
+        db.session.add(course)
+        db.session.flush()
+        dame = CourseTee(
+            course_id=course.id, name="Gul", gender="Dame",
+            par=72, course_rating=75.1, slope_rating=134,
+        )
+        herre = CourseTee(
+            course_id=course.id, name="Gul", gender="Herre",
+            par=72, course_rating=69.6, slope_rating=131,
+        )
+        db.session.add_all([dame, herre])
+        db.session.commit()
+        course_id = course.id
+        herre_id = herre.id
+        dame_id = dame.id
+
+    page = client.get(trip + "/rounds").get_data(as_text=True)
+    assert f'value="{herre_id}" data-course-id="{course_id}" data-gender="Herre" selected>' in page
+    assert f'value="{dame_id}" data-course-id="{course_id}" data-gender="Dame">' in page
+    assert "Gul (Herre)" in page

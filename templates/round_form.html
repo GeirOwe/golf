@@ -26,7 +26,7 @@
       <select class="input" id="tee_id" name="tee_id">
         {% for course in courses %}
           {% for tee in course.tees %}
-          <option value="{{ tee.id }}" data-course-id="{{ course.id }}"{% if tee.id == tee_id %} selected{% endif %}>{{ tee.name }}</option>
+          <option value="{{ tee.id }}" data-course-id="{{ course.id }}" data-gender="{{ tee.gender }}"{% if tee.id == tee_id %} selected{% endif %}>{{ tee.name }} ({{ tee.gender }})</option>
           {% endfor %}
         {% endfor %}
       </select>
@@ -73,15 +73,17 @@
   function sync() {
     var id = course.value;
     var first = null;
+    var herre = null;
+    var selected = null;
     options.forEach(function (option) {
       var show = option.getAttribute("data-course-id") === id;
       option.hidden = !show;
-      if (show && !first) first = option;
+      if (!show) return;
+      if (!first) first = option;
+      if (!herre && option.getAttribute("data-gender") === "Herre") herre = option;
+      if (option.value === tee.value) selected = option;
     });
-    var selected = options.find(function (option) {
-      return option.value === tee.value && option.getAttribute("data-course-id") === id;
-    });
-    if (!selected && first) tee.value = first.value;
+    if (!selected && (herre || first)) tee.value = (herre || first).value;
   }
   course.addEventListener("change", sync);
   sync();
