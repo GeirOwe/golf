@@ -1305,12 +1305,28 @@ def _chosen_kind(trip, current):
     return posted, None
 
 
+def _preferred_tee_id(courses, course_id):
+    """Men's tee when the course has both genders. Otherwise the first tee."""
+    course = next((item for item in courses if item.id == course_id), None)
+    if course is None or not course.tees:
+        return None
+    for tee in course.tees:
+        if tee.gender == "Herre":
+            return tee.id
+    return course.tees[0].id
+
+
 def _render_round(group, trip, error, course_id, tee_id, play_raw, tee_time, pick_up, kind, editing):
+    courses = GolfCourse.get_all()
+    if course_id is None and courses:
+        course_id = courses[0].id
+    if tee_id is None:
+        tee_id = _preferred_tee_id(courses, course_id)
     return render_template(
         "round_form.html",
         group=group,
         trip=trip,
-        courses=GolfCourse.get_all(),
+        courses=courses,
         error=error,
         course_id=course_id,
         tee_id=tee_id,

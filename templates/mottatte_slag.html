@@ -34,6 +34,7 @@
           {% for tee in course.tees %}
           <option value="{{ tee.id }}"
                   data-course-id="{{ course.id }}"
+                  data-gender="{{ tee.gender }}"
                   {% if tee_id == tee.id %}selected{% endif %}>
             {{ tee.name }} ({{ tee.gender }}) – par {{ tee.par }}, CR {{ tee.course_rating }}, slope {{ tee.slope_rating }}
           </option>
@@ -131,6 +132,12 @@
 
     if (preserveTeeId && matching.some(function (opt) { return opt.value === preserveTeeId; })) {
       teeSelect.value = preserveTeeId;
+    } else {
+      var herre = matching.find(function (opt) {
+        return opt.getAttribute("data-gender") === "Herre";
+      });
+      var pick = herre || matching[0];
+      if (pick) teeSelect.value = pick.value;
     }
 
     initialTeeId = null;
