@@ -1,3 +1,4 @@
+<div class="band">
 <div class="field">
   <label for="name">Banenavn</label>
   <input class="input" type="text" id="name" name="name" value="{{ form.name }}" required autocomplete="off">
@@ -24,7 +25,9 @@
   </div>
   <input type="hidden" id="hole_count" name="hole_count" value="{{ form.hole_count }}">
 </div>
+</div>
 
+<div class="band">
 <div class="section__head">
   <h2>Hull</h2>
   <p>Par, index og meter kommer fra scorekortet. Meter er lengden fra lengste utslag.</p>
@@ -33,7 +36,7 @@
 <p class="empty">Ingen hull ennå. Hent scorekort for å fylle par, index og meter.</p>
 {% endif %}
 <div id="hole-front-wrap" {% if not form.front_holes %}hidden{% endif %}>
-  <div class="section__head">
+  <div class="section__head section__head--sub">
     <h2>Hull 1–9</h2>
   </div>
   <div class="sheet-scroll">
@@ -60,7 +63,7 @@
   </div>
 </div>
 <div id="hole-back-wrap" {% if not form.back_holes %}hidden{% endif %}>
-  <div class="section__head">
+  <div class="section__head section__head--sub">
     <h2>Hull 10–18</h2>
   </div>
   <div class="sheet-scroll">
@@ -87,7 +90,9 @@
   </div>
 </div>
 <p id="par-summary" class="field__hint{% if form.par_summary.ok is false %} field__error{% endif %}" role="status"{% if not form.par_summary.text %} hidden{% endif %}>{{ form.par_summary.text }}</p>
+</div>
 
+<div class="band">
 <div class="section__head">
   <h2>Tee-steder</h2>
   <p>Mottatte slag (WHS): Handicap Index × (Slope / 113) + (CR − Par).</p>
@@ -145,4 +150,5 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
 </div>

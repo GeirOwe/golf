@@ -1,0 +1,6 @@
+feature: section-bands
+entry: /g/fjord
+url: http://127.0.0.1:62527
+run_id: 20261107184223-62907
+
+Group Fjord shows Spillere and Turer in separate bands. Trip Høst shows Runder, Spillere and Opplysninger in separate bands. New course shows three bands: name fields, Hull, Tee-steder. Band style is a 1px hairline, rgba(255,255,255,0.34) wash, 2px radius, no shadow. The rating picker stays hidden.
