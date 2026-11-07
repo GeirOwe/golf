@@ -10,7 +10,7 @@
       <a class="btn btn--ghost" href="{{ url_for('group_strokes', token=group.slug) }}">Mottatte slag</a>
       <a class="btn btn--ghost" href="{{ url_for('rename_group', token=group.slug) }}">Endre navn</a>
       <a class="btn btn--primary" href="{{ url_for('new_player', token=group.slug) }}">Ny spiller</a>
-      <a class="btn btn--primary" href="{{ url_for('add_golf_course') }}">Ny bane</a>
+      <a class="btn btn--ghost" href="{{ url_for('list_golf_courses') }}">Baner</a>
     </div>
   </div>
   {% if group.players %}

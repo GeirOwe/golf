@@ -55,12 +55,12 @@
     </div>
     <div class="form__actions">
       <button class="btn btn--primary" type="submit">Lagre</button>
-      <a class="btn btn--ghost" href="{{ url_for('add_golf_course') }}">Ny bane</a>
+      <a class="btn btn--ghost" href="{{ url_for('list_golf_courses') }}">Baner</a>
     </div>
   </form>
   {% else %}
   <p class="empty">Ingen baner registrert ennå.</p>
-  <a class="btn btn--primary" href="{{ url_for('add_golf_course') }}">Ny bane</a>
+  <a class="btn btn--primary" href="{{ url_for('list_golf_courses') }}">Baner</a>
   {% endif %}
 </section>
 <script>

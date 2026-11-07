@@ -18,7 +18,7 @@
       {% endif %}
       <a class="btn btn--ghost" href="{{ url_for('show_oom', token=group.slug, trip_id=trip.id) }}">Tabell OOM</a>
       <a class="btn btn--primary" href="{{ url_for('new_round', token=group.slug, trip_id=trip.id) }}">Ny runde</a>
-      <a class="btn btn--primary" href="{{ url_for('add_golf_course') }}">Ny bane</a>
+      <a class="btn btn--ghost" href="{{ url_for('list_golf_courses') }}">Baner</a>
     </div>
   </div>
   {% if days_until is not none %}

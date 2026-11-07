@@ -111,7 +111,12 @@ def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
     assert "https://www.yr.no/nb/innhold/2-2267057/meteogram.svg" in body
     assert "Ingen golfrunder registrert ennå." in body
     assert 'class="btn btn--primary" href="' + host + '/rounds">Ny runde</a>' in body
-    assert 'class="btn btn--primary" href="/baner/ny">Ny bane</a>' in body
+    assert 'class="btn btn--ghost" href="/baner">Baner</a>' in body
+    assert 'href="/baner/ny"' not in body
+    empty_round = client.get(host + "/rounds").get_data(as_text=True)
+    assert "Ingen baner registrert ennå." in empty_round
+    assert 'href="/baner">Baner</a>' in empty_round
+    assert 'href="/baner/ny"' not in empty_round
 
     with app.app_context():
         cia_membership = TripPlayer.query.filter_by(player_id=players["Cia"].id).one_or_none()
@@ -137,6 +142,10 @@ def test_new_trip_keeps_unchecked_players_and_earlier_rounds(tmp_path):
         db.session.commit()
         course_id = course.id
         tee_id = tee.id
+
+    round_form = client.get(host + "/rounds").get_data(as_text=True)
+    assert 'href="/baner">Baner</a>' in round_form
+    assert 'href="/baner/ny"' not in round_form
 
     saved_round = client.post(
         host + "/rounds",
