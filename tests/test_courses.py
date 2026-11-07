@@ -96,8 +96,8 @@ def test_new_course_stores_optional_hole_details(tmp_path):
             "facility": "Verify Bay",
             "hole_count": "18",
             "hole_number": ["1", "2", "9", "10", "18"],
-            "hole_par": ["4", "3", "5", "4", "5"],
-            "hole_stroke_index": ["7", "", "1", "2", "3"],
+            "hole_par": ["", "", "", "", ""],
+            "hole_stroke_index": ["", "", "", "", ""],
             **_tee_fields(),
         },
     )
@@ -110,11 +110,11 @@ def test_new_course_stores_optional_hole_details(tmp_path):
             for hole in CourseHole.query.filter_by(course_id=course.id).all()
         }
         assert holes == {
-            1: (4, 7),
-            2: (3, None),
-            9: (5, 1),
-            10: (4, 2),
-            18: (5, 3),
+            1: (None, None),
+            2: (None, None),
+            9: (None, None),
+            10: (None, None),
+            18: (None, None),
         }
         course_id = course.id
     page = client.get(f"/baner/{course_id}").get_data(as_text=True)
@@ -128,6 +128,53 @@ def test_new_course_stores_optional_hole_details(tmp_path):
     assert ">1<" not in back.split("<tbody>", 1)[-1]
 
 
+def test_hole_par_sum_must_match_tee_par(tmp_path):
+    client = _client(tmp_path)
+    numbers = [str(n) for n in range(1, 10)]
+    pars = ["4"] * 9
+    indexes = [""] * 9
+    mismatched = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Par",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": pars,
+            "hole_stroke_index": indexes,
+            **_tee_fields(),
+        },
+    )
+    assert mismatched.status_code == 200
+    assert (
+        "Summen av par på hullene er 36, men tee «Gul» har par 72."
+        in mismatched.get_data(as_text=True)
+    )
+    with app.app_context():
+        assert GolfCourse.query.filter_by(name="Verify Par").count() == 0
+
+    tee = _tee_fields()
+    tee["tee_par"] = ["36", "", "", ""]
+    matched = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Par",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": pars,
+            "hole_stroke_index": indexes,
+            **tee,
+        },
+    )
+    assert matched.status_code == 302
+    with app.app_context():
+        course = GolfCourse.query.filter_by(name="Verify Par").one()
+        assert course.hole_count == 9
+        assert sum(hole.par for hole in course.holes) == 36
+        assert course.tees[0].par == 36
+
+
 def test_new_course_rejects_invalid_optional_holes(tmp_path):
     client = _client(tmp_path)
     duplicate = client.post(
@@ -137,8 +184,8 @@ def test_new_course_rejects_invalid_optional_holes(tmp_path):
             "facility": "Verify Coast",
             "hole_count": "9",
             "hole_number": ["1", "1"],
-            "hole_par": ["4", "5"],
-            "hole_stroke_index": ["1", "2"],
+            "hole_par": ["", ""],
+            "hole_stroke_index": ["", ""],
             **_tee_fields(),
         },
     )
@@ -151,12 +198,87 @@ def test_new_course_rejects_invalid_optional_holes(tmp_path):
             "facility": "Verify Coast",
             "hole_count": "9",
             "hole_number": ["10"],
-            "hole_par": ["4"],
-            "hole_stroke_index": ["1"],
+            "hole_par": [""],
+            "hole_stroke_index": [""],
             **_tee_fields(),
         },
     )
     assert "Hull 10 er høyere enn antall hull (9)." in too_high.get_data(as_text=True)
+
+
+def test_hole_stroke_index_must_be_complete_unique_and_in_range(tmp_path):
+    client = _client(tmp_path)
+    numbers = [str(n) for n in range(1, 10)]
+    blank_pars = [""] * 9
+
+    out_of_range = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Index",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": blank_pars,
+            "hole_stroke_index": ["1", "2", "3", "4", "5", "6", "7", "8", "10"],
+            **_tee_fields(),
+        },
+    )
+    assert (
+        "Handicap for hull 9 må være mellom 1 og 9."
+        in out_of_range.get_data(as_text=True)
+    )
+
+    duplicate = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Index",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": blank_pars,
+            "hole_stroke_index": ["1", "2", "3", "4", "5", "6", "7", "8", "8"],
+            **_tee_fields(),
+        },
+    )
+    assert "Handicap 8 er oppgitt mer enn én gang." in duplicate.get_data(as_text=True)
+
+    missing = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Index",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers[:8],
+            "hole_par": blank_pars[:8],
+            "hole_stroke_index": ["1", "2", "3", "4", "5", "6", "7", "8"],
+            **_tee_fields(),
+        },
+    )
+    assert (
+        "Fyll inn handicap for alle hull, eller la alle stå tomme."
+        in missing.get_data(as_text=True)
+    )
+
+    complete = client.post(
+        "/baner/ny",
+        data={
+            "name": "Verify Index",
+            "facility": "Verify Park",
+            "hole_count": "9",
+            "hole_number": numbers,
+            "hole_par": blank_pars,
+            "hole_stroke_index": ["9", "8", "7", "6", "5", "4", "3", "2", "1"],
+            **_tee_fields(),
+        },
+    )
+    assert complete.status_code == 302
+    with app.app_context():
+        course = GolfCourse.query.filter_by(name="Verify Index").one()
+        indexes = {
+            hole.number: hole.stroke_index
+            for hole in CourseHole.query.filter_by(course_id=course.id).all()
+        }
+        assert indexes == {n: 10 - n for n in range(1, 10)}
 
 
 def test_missing_hole_count_column_is_added(tmp_path):

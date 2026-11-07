@@ -165,8 +165,11 @@ def _parse_hole_rows_from_form(form, hole_count):
         stroke_index, index_error = _parse_optional_int(index_text, "handicap")
         if index_error:
             return None, index_error
-        if stroke_index is not None and (stroke_index < 1 or stroke_index > 54):
-            return None, f"Handicap for hull {number} må være mellom 1 og 54."
+        max_index = hole_count if hole_count is not None else 54
+        if stroke_index is not None and (stroke_index < 1 or stroke_index > max_index):
+            return None, (
+                f"Handicap for hull {number} må være mellom 1 og {max_index}."
+            )
         seen.add(number)
         rows.append({
             "number": number,
@@ -186,6 +189,53 @@ def _apply_hole_rows(course, rows):
             par=row["par"],
             stroke_index=row["stroke_index"],
         ))
+
+
+def _hole_par_sum_error(hole_rows, hole_count, tee_rows):
+    """When hole pars are entered, their sum must match each tee's total par."""
+    pars_by_number = {
+        row["number"]: row["par"]
+        for row in hole_rows
+        if row["par"] is not None
+    }
+    if not pars_by_number:
+        return None
+    expected_numbers = set(range(1, hole_count + 1))
+    if set(pars_by_number) != expected_numbers:
+        return "Fyll inn par for alle hull, eller la alle stå tomme."
+    total = sum(pars_by_number.values())
+    for tee in tee_rows:
+        if tee["par"] != total:
+            return (
+                f"Summen av par på hullene er {total}, "
+                f"men tee «{tee['name']}» har par {tee['par']}."
+            )
+    return None
+
+
+def _hole_stroke_index_error(hole_rows, hole_count):
+    """Stroke indexes must be a complete 1..N set with no duplicates or gaps."""
+    indexes_by_hole = {
+        row["number"]: row["stroke_index"]
+        for row in hole_rows
+        if row["stroke_index"] is not None
+    }
+    if not indexes_by_hole:
+        return None
+    expected_holes = set(range(1, hole_count + 1))
+    if set(indexes_by_hole) != expected_holes:
+        return "Fyll inn handicap for alle hull, eller la alle stå tomme."
+    values = list(indexes_by_hole.values())
+    seen = set()
+    for value in values:
+        if value in seen:
+            return f"Handicap {value} er oppgitt mer enn én gang."
+        seen.add(value)
+    missing = expected_holes - set(values)
+    if missing:
+        missing_list = ", ".join(str(number) for number in sorted(missing))
+        return f"Handicap-oversikten mangler {missing_list}."
+    return None
 
 
 def _database_url():
@@ -1323,13 +1373,20 @@ def add_golf_course():
         elif hole_error:
             error = hole_error
         else:
-            course = GolfCourse(name=name, facility=facility, hole_count=hole_count)
-            db.session.add(course)
-            db.session.flush()
-            _apply_tee_rows(course, rows)
-            _apply_hole_rows(course, hole_rows)
-            db.session.commit()
-            return redirect(url_for("view_golf_course", course_id=course.id))
+            par_sum_error = _hole_par_sum_error(hole_rows, hole_count, rows)
+            index_error = _hole_stroke_index_error(hole_rows, hole_count)
+            if par_sum_error:
+                error = par_sum_error
+            elif index_error:
+                error = index_error
+            else:
+                course = GolfCourse(name=name, facility=facility, hole_count=hole_count)
+                db.session.add(course)
+                db.session.flush()
+                _apply_tee_rows(course, rows)
+                _apply_hole_rows(course, hole_rows)
+                db.session.commit()
+                return redirect(url_for("view_golf_course", course_id=course.id))
 
     return render_template(
         "add_golf_course.html",
