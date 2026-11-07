@@ -137,7 +137,7 @@ def _require_query(name, facility):
 
 
 def _club_source(name, facility):
-    hay = f" {_norm(f'{name or ''} {facility or ''}')} "
+    hay = f" {_norm((name or '') + ' ' + (facility or ''))} "
     hits = [
         source
         for source in SOURCES
