@@ -192,6 +192,7 @@ class GolfCourse(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     facility = db.Column(db.String(120), nullable=False)
+    hole_count = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     tees = db.relationship(
@@ -201,6 +202,13 @@ class GolfCourse(db.Model):
         cascade='all, delete-orphan',
         order_by=lambda: desc(CourseTee.course_rating),
     )
+    holes = db.relationship(
+        'CourseHole',
+        backref='course',
+        lazy=True,
+        cascade='all, delete-orphan',
+        order_by=lambda: CourseHole.number.asc(),
+    )
 
     @classmethod
     def get_all(cls):
@@ -209,6 +217,21 @@ class GolfCourse(db.Model):
     @classmethod
     def get_by_id(cls, course_id):
         return cls.query.get(course_id)
+
+
+class CourseHole(db.Model):
+    """Optional per-hole par and stroke index for a course."""
+    __tablename__ = 'course_holes'
+    __table_args__ = (
+        UniqueConstraint('course_id', 'number', name='uq_course_hole_number'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey('golf_courses.id'), nullable=False)
+    number = db.Column(db.Integer, nullable=False)
+    par = db.Column(db.Integer)
+    stroke_index = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class CourseTee(db.Model):

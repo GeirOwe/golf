@@ -11,6 +11,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from database import (
+    CourseHole,
     CourseTee,
     GolfCourse,
     Group,
@@ -96,6 +97,95 @@ def _apply_tee_rows(course, rows):
                 course_rating=row["course_rating"],
                 slope_rating=row["slope_rating"],
             ))
+
+
+def _parse_hole_count(raw):
+    """Require a whole number of holes between 1 and 54."""
+    text_value = (raw or "").strip()
+    if not text_value:
+        return None, "Skriv antall hull."
+    try:
+        count = int(text_value)
+    except ValueError:
+        return None, "Skriv antall hull som et heltall."
+    if count < 1 or count > 54:
+        return None, "Antall hull må være mellom 1 og 54."
+    return count, None
+
+
+def _parse_optional_int(raw, label):
+    """Parse an optional integer field. Blank means None."""
+    text_value = (raw or "").strip()
+    if not text_value:
+        return None, None
+    try:
+        return int(text_value), None
+    except ValueError:
+        return None, f"Ugyldig {label}."
+
+
+def _parse_hole_rows_from_form(form, hole_count):
+    """Parse optional hole rows. Blank rows are skipped."""
+    numbers = form.getlist("hole_number")
+    pars = form.getlist("hole_par")
+    indexes = form.getlist("hole_stroke_index")
+    if not numbers and not pars and not indexes:
+        return [], None
+
+    longest = max(len(numbers), len(pars), len(indexes))
+    numbers += [""] * (longest - len(numbers))
+    pars += [""] * (longest - len(pars))
+    indexes += [""] * (longest - len(indexes))
+
+    rows = []
+    seen = set()
+    for number_raw, par_raw, index_raw in zip(numbers, pars, indexes):
+        number_text = (number_raw or "").strip()
+        par_text = (par_raw or "").strip()
+        index_text = (index_raw or "").strip()
+        if not number_text and not par_text and not index_text:
+            continue
+        if not number_text:
+            return None, "Hullnummer må fylles ut når du legger inn hull."
+        try:
+            number = int(number_text)
+        except ValueError:
+            return None, "Ugyldig hullnummer."
+        if number < 1 or number > 54:
+            return None, "Hullnummer må være mellom 1 og 54."
+        if number in seen:
+            return None, f"Hull {number} er oppgitt mer enn én gang."
+        if hole_count is not None and number > hole_count:
+            return None, f"Hull {number} er høyere enn antall hull ({hole_count})."
+        par, par_error = _parse_optional_int(par_text, "par")
+        if par_error:
+            return None, par_error
+        if par is not None and (par < 3 or par > 6):
+            return None, f"Par for hull {number} må være mellom 3 og 6."
+        stroke_index, index_error = _parse_optional_int(index_text, "handicap")
+        if index_error:
+            return None, index_error
+        if stroke_index is not None and (stroke_index < 1 or stroke_index > 54):
+            return None, f"Handicap for hull {number} må være mellom 1 og 54."
+        seen.add(number)
+        rows.append({
+            "number": number,
+            "par": par,
+            "stroke_index": stroke_index,
+        })
+    return rows, None
+
+
+def _apply_hole_rows(course, rows):
+    """Replace optional hole details on a course."""
+    CourseHole.query.filter_by(course_id=course.id).delete(synchronize_session=False)
+    for row in rows:
+        db.session.add(CourseHole(
+            course_id=course.id,
+            number=row["number"],
+            par=row["par"],
+            stroke_index=row["stroke_index"],
+        ))
 
 
 def _database_url():
@@ -252,6 +342,18 @@ def ensure_finale_bonus_column():
     db.session.commit()
 
 
+def ensure_golf_course_hole_count_column():
+    """Add golf_courses.hole_count for databases created before hole details."""
+    bind = db.session.get_bind()
+    if "golf_courses" not in inspect(bind).get_table_names():
+        return
+    columns = {column["name"] for column in inspect(bind).get_columns("golf_courses")}
+    if "hole_count" in columns:
+        return
+    db.session.execute(text("ALTER TABLE golf_courses ADD COLUMN hole_count INTEGER"))
+    db.session.commit()
+
+
 def ensure_round_score_unique():
     """One score row per player per round. Drop older duplicates first."""
     bind = db.session.get_bind()
@@ -284,6 +386,7 @@ def _init_schema():
     ensure_course_tee_gender_column()
     ensure_group_slug_column()
     ensure_finale_bonus_column()
+    ensure_golf_course_hole_count_column()
     ensure_round_score_unique()
 
 
@@ -1194,26 +1297,46 @@ def group_strokes(token):
 def add_golf_course():
     """Register a golf course with tee boxes."""
     error = None
+    form_values = {
+        "name": "",
+        "facility": "",
+        "hole_count": "",
+    }
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         facility = (request.form.get("facility") or "").strip()
+        form_values["name"] = name
+        form_values["facility"] = facility
+        form_values["hole_count"] = (request.form.get("hole_count") or "").strip()
+        hole_count, hole_count_error = _parse_hole_count(form_values["hole_count"])
         rows, parse_error = _parse_tee_rows_from_form(request.form)
+        hole_rows, hole_error = _parse_hole_rows_from_form(request.form, hole_count)
 
         if not name or not facility:
             error = "Banenavn og anlegg må fylles ut."
+        elif hole_count_error:
+            error = hole_count_error
         elif parse_error:
             error = parse_error
         elif not rows:
             error = "Legg inn minst ett tee-sted."
+        elif hole_error:
+            error = hole_error
         else:
-            course = GolfCourse(name=name, facility=facility)
+            course = GolfCourse(name=name, facility=facility, hole_count=hole_count)
             db.session.add(course)
             db.session.flush()
             _apply_tee_rows(course, rows)
+            _apply_hole_rows(course, hole_rows)
             db.session.commit()
             return redirect(url_for("view_golf_course", course_id=course.id))
 
-    return render_template("add_golf_course.html", error=error, tee_genders=TEE_GENDERS)
+    return render_template(
+        "add_golf_course.html",
+        error=error,
+        tee_genders=TEE_GENDERS,
+        form=form_values,
+    )
 
 
 @app.route("/baner/<int:course_id>", methods=["GET", "POST"])
