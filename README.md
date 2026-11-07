@@ -8,7 +8,7 @@ Kjører på [Render](https://golf-app-w497.onrender.com).
 
 - Grupper. Kortadresse `/g/<slug>` følger gruppenavnet, for eksempel `/g/lisboa-host`. Den gamle hemmelige token-adressen virker fortsatt. Etter omdøping peker den gamle kortadressen videre til den nye.
 - Spillere med handicap. Gyldig handicap er 0.0 til 54.0.
-- Turer med destinasjon, lokale regler og yr-sted. En spiller som forlater turen tar med seg scorene sine fra den turen.
+- Turer med destinasjon, lokale regler og yr-sted. En spiller som forlater turen mister scorene sine fra den turen.
 - Runder med bane, dato, tee time og henting. Datoer vises på norsk, for eksempel `Mandag 10.03`.
 - Scoreregistrering per runde. Én score per spiller per runde.
 - Tabell OOM. Summerer scorer over 0, regner snitt av de samme scorene, og sorterer på total.
