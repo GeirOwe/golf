@@ -12,7 +12,7 @@ _DB_PATH = Path(tempfile.mkdtemp(prefix="golf-courses-")) / "golf.db"
 os.environ["DATABASE_URL"] = "sqlite:///" + _DB_PATH.resolve().as_posix()
 
 from app import _par_summary, app, db
-from course_lookup import SOURCES, _SLOPE_DIRECTORY
+from course_lookup import SOURCES, _DATAGOLF_DIRECTORY, _SLOPE_DIRECTORY
 from database import CourseHole, CourseTee, GolfCourse
 
 
@@ -498,6 +498,7 @@ def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_pa
         _SLOPE_DIRECTORY: (
             '<a href="https://slope.no/baner/egersund-golfklubb/">Egersund Golfklubb</a>'
         ),
+        _DATAGOLF_DIRECTORY: "<table></table>",
     }
 
     def fake_get(url):
@@ -513,8 +514,10 @@ def test_fetch_buttons_fill_from_the_club_and_leave_unknown_courses_alone(tmp_pa
         )
         assert unknown.status_code == 200
         assert unknown.json["ok"] is False
-        assert "uendret" in unknown.json["error"]
-        assert "slope.no" in unknown.json["error"]
+        assert unknown.json["error"] == (
+            "Fant ikke banen på klubbsiden, på slope.no eller på Datagolf. "
+            "Skjemaet er uendret."
+        )
 
         card = client.post(
             "/baner/hent",
@@ -586,6 +589,7 @@ def test_missing_club_page_falls_back_to_slope_no(tmp_path):
     pages = {
         _SLOPE_DIRECTORY: directory,
         "https://slope.no/baner/egersund-golfklubb/": card + ratings,
+        _DATAGOLF_DIRECTORY: "<table></table>",
     }
 
     def fake_get(url):
@@ -621,6 +625,109 @@ def test_missing_club_page_falls_back_to_slope_no(tmp_path):
             {"name": "Rød", "gender": "Herre", "par": 70, "course_rating": 65.7, "slope_rating": 124},
             {"name": "Hvit", "gender": "Dame", "par": 70, "course_rating": 73.9, "slope_rating": 142},
         ]
+    finally:
+        app.config.pop("COURSE_HTTP_GET", None)
+
+
+def _datagolf_card(title):
+    rows = []
+    for number in range(1, 10):
+        rows.append(
+            "<tr>"
+            f"<td>{number}</td>"
+            f'<td bgcolor="#FFFFFF">{300 + number}</td>'
+            f'<td bgcolor="#FFFF00">{280 + number}</td>'
+            f"<td>3</td><td>{number}</td>"
+            f"<td>{number + 9}</td>"
+            f'<td bgcolor="#FFFFFF">{200 + number}</td>'
+            f'<td bgcolor="#FFFF00">{180 + number}</td>'
+            f"<td>3</td><td>{number + 9}</td>"
+            "</tr>"
+        )
+    return (
+        f"<b>{title}</b><table class=\"preto\">"
+        "<tr><td>Hole</td><td colspan=\"2\">Metros</td><td>PAR</td><td>S.I.</td>"
+        "<td></td><td>Hole</td><td colspan=\"2\">Metros</td><td>PAR</td><td>S.I.</td></tr>"
+        + "".join(rows)
+        + "<tr><td>C.Rat.</td><td>71.1</td><td>69.6</td><td colspan=\"2\">(Homens)</td></tr>"
+        "<tr><td>Slope</td><td>134</td><td>131</td><td colspan=\"2\"></td></tr>"
+        "<tr><td>C.Rat.</td><td></td><td>75.1</td><td colspan=\"2\">(Senhoras)</td></tr>"
+        "<tr><td>Slope</td><td></td><td>134</td><td colspan=\"2\"></td></tr>"
+        "</table>"
+    )
+
+
+def test_missing_slope_course_falls_back_to_datagolf(tmp_path):
+    client = _client(tmp_path)
+    directory = """
+    <table>
+    <tr>
+      <td>Lisboa</td>
+      <td><a href="course.asp?ncourse=023&ack=8428ACK987&club=ALL">Quinta da Marinha</a></td>
+      <td><a href="course.asp?ncourse=023&ack=8428ACK987&club=ALL">Clube de Golfe da Quinta da Marinha</a></td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>Algarve</td>
+      <td><a href="course.asp?ncourse=009&ack=8428ACK987&club=ALL">Quinta do Lago</a></td>
+      <td><a href="course.asp?ncourse=009&ack=8428ACK987&club=ALL">Quinta do Lago Sul e Norte</a></td>
+      <td>2</td>
+    </tr>
+    </table>
+    """
+    card = "https://scoring-pt.datagolf.pt/scripts/show_card.asp"
+    pages = {
+        _SLOPE_DIRECTORY: "<table></table>",
+        _DATAGOLF_DIRECTORY: directory,
+        card + "?Club=ALL&ack=8428ACK987&ncourse=023-1&stat=Y": _datagolf_card("Quinta da Marinha"),
+        card + "?Club=ALL&ack=8428ACK987&ncourse=009-1&stat=Y": _datagolf_card("Quinta do Lago Sul"),
+        card + "?Club=ALL&ack=8428ACK987&ncourse=009-2&stat=Y": _datagolf_card("Quinta do Lago Norte"),
+    }
+
+    def fake_get(url):
+        if url not in pages:
+            raise AssertionError(url)
+        return pages[url]
+
+    app.config["COURSE_HTTP_GET"] = fake_get
+    try:
+        fetched = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Quinta da Marinha", "facility": "Cascais"},
+        )
+        assert fetched.json["ok"] is True
+        assert fetched.json["meters_tee"] == "Hvit"
+        assert fetched.json["hole_count"] == 18
+        assert fetched.json["holes"][0] == {
+            "number": 1, "par": 3, "stroke_index": 1, "meters": 301,
+        }
+        assert "Datagolf" in fetched.json["message"]
+        assert "rett det som ikke stemmer" in fetched.json["message"]
+
+        ratings = client.post(
+            "/baner/hent",
+            json={"kind": "rating", "name": "Quinta da Marinha", "facility": ""},
+        )
+        assert ratings.json["ok"] is True
+        assert ratings.json["tees"] == [
+            {"name": "Hvit", "gender": "Herre", "par": 54, "course_rating": 71.1, "slope_rating": 134},
+            {"name": "Gul", "gender": "Herre", "par": 54, "course_rating": 69.6, "slope_rating": 131},
+            {"name": "Gul", "gender": "Dame", "par": 54, "course_rating": 75.1, "slope_rating": 134},
+        ]
+
+        sul = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Quinta do Lago Sul", "facility": ""},
+        )
+        assert sul.json["ok"] is True
+        assert "Quinta do Lago Sul" in sul.json["message"]
+
+        ambiguous = client.post(
+            "/baner/hent",
+            json={"kind": "scorecard", "name": "Quinta do Lago", "facility": ""},
+        )
+        assert ambiguous.json["ok"] is False
+        assert "flere baner på Datagolf" in ambiguous.json["error"]
     finally:
         app.config.pop("COURSE_HTTP_GET", None)
 

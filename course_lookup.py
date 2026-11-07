@@ -1,8 +1,10 @@
-"""Fetch scorecard and tee ratings from a club page, then from slope.no.
+"""Fetch scorecard and tee ratings from a club page, then slope.no, then Datagolf.
 
 Only hosts listed below are contacted. A page that cannot be parsed is
 rejected, so the form is never filled with guessed numbers. slope.no is used
-when the club page has no readable card, and the message says so.
+when the club page has no readable card. Datagolf is the Portuguese course
+list and is used only when slope.no has no match. The message says which
+source was used.
 """
 
 import html
@@ -15,6 +17,10 @@ import requests
 
 class LookupError(Exception):
     """The club page could not be used. The message is safe to show."""
+
+
+class _Miss(LookupError):
+    """The directory answered, and the course was not in it."""
 
 
 # Club sites that publish the same scorecard and slope markup.
@@ -55,6 +61,32 @@ _SLOPE_GENDER = {
 }
 _SLOPE_DIRECTORY = "https://slope.no/baner/"
 _SLOPE_HOSTS = ("slope.no",)
+_DATAGOLF_DIRECTORY = (
+    "https://scoring-pt.datagolf.pt/scripts/all_courses.asp?ack=8428ACK987&club=ALL"
+)
+_DATAGOLF_HOSTS = ("scoring-pt.datagolf.pt",)
+_DATAGOLF_COLORS = {
+    "FFFFFF": "Hvit",
+    "FFFF00": "Gul",
+    "0000FF": "Blå",
+    "FF0000": "Rød",
+    "000000": "Sort",
+    "008000": "Grønn",
+    "A000A0": "Lilla",
+}
+_DATAGOLF_GENDER = {"homens": "Herre", "senhoras": "Dame"}
+_COURSE_MISS = (
+    "Fant ikke banen på klubbsiden, på slope.no eller på Datagolf. "
+    "Skjemaet er uendret."
+)
+_CARD_MISS = (
+    "Fant ikke scorekortet på klubbsiden, på slope.no eller på Datagolf. "
+    "Skjemaet er uendret."
+)
+_RATING_MISS = (
+    "Fant ikke CR og slope på klubbsiden, på slope.no eller på Datagolf. "
+    "Skjemaet er uendret."
+)
 _SLOPE_SKIP = {"kart", "greenfee"}
 _NAME_STOP = {
     "golf",
@@ -68,6 +100,7 @@ _NAME_STOP = {
     "course",
     "club",
 }
+_DATAGOLF_STOP = _NAME_STOP | {"golfe", "clube", "campo"}
 _COURSE_LINK = re.compile(
     r'href="(https://slope\.no/baner/([a-z0-9-]+)/)"[^>]*>([^<]+)</a>',
     re.I,
@@ -102,13 +135,18 @@ def _fetch_scorecard(name, facility, http_get):
             club_error = exc
     try:
         return _slope_scorecard(name, facility, http_get)
-    except LookupError:
+    except _Miss:
+        pass
+    except LookupError as exc:
         if club_error is not None:
-            raise LookupError(
-                "Fant ikke scorekortet på klubbsiden eller på slope.no. "
-                "Skjemaet er uendret."
-            ) from club_error
-        raise
+            raise LookupError(_CARD_MISS) from club_error
+        raise exc
+    try:
+        return _datagolf_scorecard(name, facility, http_get)
+    except _Miss as exc:
+        if club_error is not None:
+            raise LookupError(_CARD_MISS) from club_error
+        raise LookupError(_COURSE_MISS) from exc
 
 
 def _fetch_ratings(name, facility, http_get):
@@ -122,13 +160,18 @@ def _fetch_ratings(name, facility, http_get):
             club_error = exc
     try:
         return _slope_ratings(name, facility, http_get)
-    except LookupError:
+    except _Miss:
+        pass
+    except LookupError as exc:
         if club_error is not None:
-            raise LookupError(
-                "Fant ikke CR og slope på klubbsiden eller på slope.no. "
-                "Skjemaet er uendret."
-            ) from club_error
-        raise
+            raise LookupError(_RATING_MISS) from club_error
+        raise exc
+    try:
+        return _datagolf_ratings(name, facility, http_get)
+    except _Miss as exc:
+        if club_error is not None:
+            raise LookupError(_RATING_MISS) from club_error
+        raise LookupError(_COURSE_MISS) from exc
 
 
 def _require_query(name, facility):
@@ -218,7 +261,7 @@ def _slope_course(name, facility, http_get):
     if len(hits) > 1:
         raise LookupError("Navnet passer flere baner på slope.no. Skjemaet er uendret.")
     if not hits:
-        raise LookupError(
+        raise _Miss(
             "Fant ikke banen på klubbsiden eller på slope.no. Skjemaet er uendret."
         )
     return hits[0]
@@ -269,6 +312,283 @@ def _slope_ratings(name, facility, http_get):
             "Dette er ikke klubbens egen side, så rett det som ikke stemmer."
         ),
     }
+
+
+def _datagolf_tokens(text):
+    return [
+        token
+        for token in _norm(text).split()
+        if len(token) >= 3 and token not in _DATAGOLF_STOP
+    ]
+
+
+def _datagolf_text(raw):
+    return html.unescape(raw).replace("\xa0", " ").replace("&nbsp;", " ").strip()
+
+
+def _datagolf_directory(page):
+    courses = []
+    seen = set()
+    for row in re.findall(r"<tr\b[^>]*>(.*?)</tr>", page, re.S | re.I):
+        links = re.findall(
+            r'href="course\.asp\?ncourse=(\d+)&(?:amp;)?ack=([^"&]+)&(?:amp;)?club=ALL"[^>]*>\s*([^<]*)',
+            row,
+            re.I,
+        )
+        count = re.search(r"<td[^>]*>\s*(\d+)\s*(?:&nbsp;)?\s*</td>\s*$", row, re.I)
+        if len(links) < 2 or count is None:
+            continue
+        course_id, ack, short = links[0]
+        full = links[1][2]
+        if course_id in seen:
+            continue
+        seen.add(course_id)
+        layouts = int(count.group(1))
+        if layouts < 1 or layouts > 6:
+            continue
+        courses.append({
+            "id": course_id,
+            "ack": ack,
+            "short": _datagolf_text(short),
+            "full": _datagolf_text(full),
+            "layouts": layouts,
+        })
+    return courses
+
+
+def _datagolf_match(course, query):
+    for label in (course["short"], course["full"]):
+        tokens = _datagolf_tokens(label)
+        if tokens and all(token in query for token in tokens):
+            return True
+    return False
+
+
+def _datagolf_course(name, facility, http_get):
+    page = _get(_DATAGOLF_DIRECTORY, _DATAGOLF_HOSTS, http_get, who="Datagolf")
+    query = _datagolf_tokens(f"{name or ''} {facility or ''}")
+    hits = [course for course in _datagolf_directory(page) if _datagolf_match(course, query)]
+    if len(hits) > 1:
+        raise LookupError("Navnet passer flere baner på Datagolf. Skjemaet er uendret.")
+    if not hits:
+        raise _Miss("Fant ikke banen på Datagolf. Skjemaet er uendret.")
+    return hits[0], query
+
+
+def _datagolf_card_url(course, layout):
+    return "https://scoring-pt.datagolf.pt/scripts/show_card.asp?" + urlencode({
+        "Club": "ALL",
+        "ack": course["ack"],
+        "ncourse": course["id"] + "-" + str(layout),
+        "stat": "Y",
+    })
+
+
+def _datagolf_cards(course, http_get):
+    cards = []
+    for layout in range(1, course["layouts"] + 1):
+        url = _datagolf_card_url(course, layout)
+        try:
+            page = _get(url, _DATAGOLF_HOSTS, http_get, who="Datagolf")
+        except LookupError:
+            continue
+        card = _parse_datagolf_card(page)
+        if card is not None:
+            card["url"] = url
+            cards.append(card)
+    return cards
+
+
+def _choose_datagolf_card(cards, query, layouts):
+    if not cards:
+        raise LookupError("Scorekortet fra Datagolf kunne ikke leses. Skjemaet er uendret.")
+    if layouts == 1 and len(cards) == 1:
+        return cards[0]
+    hits = []
+    for card in cards:
+        tokens = _datagolf_tokens(card["title"])
+        if tokens and all(token in query for token in tokens):
+            hits.append(card)
+    if len(hits) != 1:
+        raise LookupError("Navnet passer flere baner på Datagolf. Skjemaet er uendret.")
+    return hits[0]
+
+
+def _datagolf_scorecard(name, facility, http_get):
+    course, query = _datagolf_course(name, facility, http_get)
+    card = _choose_datagolf_card(_datagolf_cards(course, http_get), query, course["layouts"])
+    if not card["holes"]:
+        raise LookupError("Scorekortet fra Datagolf kunne ikke leses. Skjemaet er uendret.")
+    return {
+        "ok": True,
+        "source": "Datagolf",
+        "url": card["url"],
+        "meters_tee": card["meters_tee"],
+        "hole_count": len(card["holes"]),
+        "holes": card["holes"],
+        "message": (
+            f"Scorekort fra Datagolf ({card['title']}). "
+            f"Meter er fra utslag {card['meters_tee']}. "
+            "Dette er ikke klubbens egen side, så rett det som ikke stemmer."
+        ),
+    }
+
+
+def _datagolf_ratings(name, facility, http_get):
+    course, query = _datagolf_course(name, facility, http_get)
+    card = _choose_datagolf_card(_datagolf_cards(course, http_get), query, course["layouts"])
+    if not card["tees"]:
+        raise LookupError("CR og slope fra Datagolf kunne ikke leses. Skjemaet er uendret.")
+    return {
+        "ok": True,
+        "source": "Datagolf",
+        "url": card["url"],
+        "tees": card["tees"],
+        "message": (
+            f"CR og slope fra Datagolf ({card['title']}). "
+            "Dette er ikke klubbens egen side, så rett det som ikke stemmer."
+        ),
+    }
+
+
+def _datagolf_cells(row_html):
+    cells = []
+    for attrs, inner in re.findall(r"<td\b([^>]*)>(.*?)</td>", row_html, re.S | re.I):
+        color = re.search(r"bgcolor\s*=\s*\"?#?([0-9A-Fa-f]{6})", attrs, re.I)
+        span = re.search(r"colspan\s*=\s*\"?(\d+)", attrs, re.I)
+        cells.append({
+            "text": _datagolf_text(_TAG.sub("", inner)),
+            "color": color.group(1).upper() if color else "",
+            "span": int(span.group(1)) if span else 1,
+        })
+    return cells
+
+
+def _parse_datagolf_card(page):
+    title_match = re.search(r"<b>\s*([^<]+?)\s*</b>", page, re.I)
+    table_match = re.search(r'<table\b[^>]*class="preto"[^>]*>(.*?)</table>', page, re.I | re.S)
+    if title_match is None or table_match is None:
+        return None
+    rows = [
+        _datagolf_cells(row)
+        for row in re.findall(r"<tr\b[^>]*>(.*?)</tr>", table_match.group(1), re.S | re.I)
+    ]
+    rows = [row for row in rows if row]
+    if not rows:
+        return None
+    meter_spans = [cell["span"] for cell in rows[0] if cell["text"].lower() == "metros"]
+    if len(meter_spans) != 2 or meter_spans[0] != meter_spans[1] or meter_spans[0] < 1:
+        return None
+    width = meter_spans[0]
+    by_number = {}
+    colors = None
+    for cells in rows[1:]:
+        if not cells[0]["text"].isdigit():
+            continue
+        if len(cells) < 2 * (width + 3):
+            return None
+        for side in (0, 1):
+            base = side * (width + 3)
+            if not cells[base]["text"].isdigit():
+                return None
+            number = int(cells[base]["text"])
+            tee_cells = cells[base + 1:base + 1 + width]
+            side_colors = [cell["color"] for cell in tee_cells]
+            if colors is None:
+                colors = side_colors
+            elif side_colors != colors:
+                return None
+            par = _whole(cells[base + 1 + width]["text"])
+            stroke_index = _whole(cells[base + 2 + width]["text"])
+            if par is None or stroke_index is None:
+                return None
+            by_number[number] = {
+                "par": par,
+                "stroke_index": stroke_index,
+                "meters": [_whole(cell["text"]) for cell in tee_cells],
+            }
+    numbers = sorted(by_number)
+    if not numbers or numbers != list(range(1, len(numbers) + 1)):
+        return None
+    if colors is None or any(len(item["meters"]) != width for item in by_number.values()):
+        return None
+    tee_par = sum(by_number[number]["par"] for number in numbers)
+    played = []
+    for index, color in enumerate(colors):
+        name = _DATAGOLF_COLORS.get(color)
+        if name is None:
+            continue
+        holes = []
+        for number in numbers:
+            meters = by_number[number]["meters"][index]
+            if meters is None:
+                holes = []
+                break
+            holes.append({
+                "number": number,
+                "par": by_number[number]["par"],
+                "stroke_index": by_number[number]["stroke_index"],
+                "meters": meters,
+            })
+        if holes and _consistent(holes):
+            played.append({"name": name, "holes": holes, "sum": sum(hole["meters"] for hole in holes)})
+    if not played:
+        return None
+    chosen = max(played, key=lambda item: item["sum"])
+    tees = _datagolf_tees(rows, colors, width, tee_par)
+    return {
+        "title": _datagolf_text(title_match.group(1)),
+        "meters_tee": chosen["name"],
+        "holes": chosen["holes"],
+        "tees": tees,
+    }
+
+
+def _datagolf_tees(rows, colors, width, tee_par):
+    if not (27 <= tee_par <= 80):
+        return []
+    pending = None
+    found = []
+    for cells in rows:
+        label = cells[0]["text"].lower().rstrip(".")
+        if len(cells) < 1 + width + 1:
+            pending = None
+            continue
+        values = cells[1:1 + width]
+        if label == "c.rat":
+            gender = _DATAGOLF_GENDER.get(re.sub(r"[()]", "", cells[1 + width]["text"]).strip().lower())
+            pending = (gender, [_rating(cell["text"]) for cell in values])
+            continue
+        if label != "slope" or pending is None:
+            pending = None
+            continue
+        gender, ratings = pending
+        pending = None
+        slopes = [_whole(cell["text"]) for cell in values]
+        if gender is None or len(ratings) != width or len(slopes) != width:
+            continue
+        for color, course_rating, slope in zip(colors, ratings, slopes):
+            name = _DATAGOLF_COLORS.get(color)
+            if name is None or course_rating is None or slope is None:
+                continue
+            if not (50 <= course_rating <= 85 and 55 <= slope <= 155):
+                continue
+            found.append({
+                "name": name,
+                "gender": gender,
+                "par": tee_par,
+                "course_rating": course_rating,
+                "slope_rating": slope,
+            })
+    tees = []
+    seen = set()
+    for tee in found:
+        key = (tee["name"], tee["gender"])
+        if key in seen:
+            continue
+        seen.add(key)
+        tees.append(tee)
+    return tees
 
 
 def _choose_slope_card(page):
