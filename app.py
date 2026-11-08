@@ -1557,6 +1557,36 @@ def _score_rows(trip, golf_round, values):
     return rows
 
 
+def _round_stroke_rows(trip, tee):
+    return [
+        {
+            "name": membership.player.name,
+            "handicap": membership.handicap,
+            "strokes": course_handicap(
+                membership.handicap,
+                tee.slope_rating,
+                tee.course_rating,
+                tee.par,
+            ),
+        }
+        for membership in trip.members()
+    ]
+
+
+@app.route("/g/<token>/trips/<int:trip_id>/rounds/<int:round_id>/mottatte-slag")
+def round_strokes(token, trip_id, round_id):
+    group = _group_or_404(token)
+    trip = _trip_or_404(group, trip_id)
+    golf_round = _round_or_404(trip, round_id)
+    return render_template(
+        "round_strokes.html",
+        group=group,
+        trip=trip,
+        golf_round=golf_round,
+        rows=_round_stroke_rows(trip, golf_round.tee),
+    )
+
+
 @app.route(
     "/g/<token>/trips/<int:trip_id>/rounds/<int:round_id>/scores",
     methods=["GET", "POST"],

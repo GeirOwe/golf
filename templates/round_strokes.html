@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ trip.name }}{% endblock %}
+{% block brand %}{{ trip.name }}{% endblock %}
+{% block content %}
+<section class="section">
+  <p class="crumbs">
+    <a href="{{ url_for('show_group', token=group.slug) }}">{{ group.name }}</a>
+    <a href="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">{{ trip.name }}</a>
+  </p>
+  <div class="section__head">
+    <h1>Slag mottatt</h1>
+    <p>{{ golf_round.course.name }} · {{ golf_round.tee.name }} ({{ golf_round.tee.gender }}) · {{ golf_round.display_date }} · {{ golf_round.tee_time }}</p>
+    <p>Par {{ golf_round.tee.par }}, CR {{ golf_round.tee.course_rating }}, slope {{ golf_round.tee.slope_rating }}</p>
+  </div>
+  {% if rows %}
+  <div class="sheet-scroll">
+    <table class="sheet">
+      <thead>
+        <tr>
+          <th>Spiller</th>
+          <th class="num">HCP</th>
+          <th class="num">Mottatte slag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="num">{{ '%.1f'|format(row.handicap) }}</td>
+          <td class="num">{{ row.strokes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">Ingen spillere på turen.</p>
+  {% endif %}
+  <div class="form__actions">
+    <a class="btn btn--ghost" href="{{ url_for('show_trip', token=group.slug, trip_id=trip.id) }}">Tilbake</a>
+  </div>
+</section>
+{% endblock %}

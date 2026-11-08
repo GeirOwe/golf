@@ -398,3 +398,69 @@ def test_new_round_defaults_to_the_mens_tee_when_both_genders_exist(tmp_path):
     assert f'value="{herre_id}" data-course-id="{course_id}" data-gender="Herre" selected>' in page
     assert f'value="{dame_id}" data-course-id="{course_id}" data-gender="Dame">' in page
     assert "Gul (Herre)" in page
+
+
+def test_round_shows_received_strokes_for_its_tee(tmp_path):
+    client = _client(tmp_path)
+    client.post("/start", data={"secret": "verify-secret"})
+    lisboa = _open_group(client, "Lisboa")
+    other = _open_group(client, "Algarve")
+    for name, handicap in (("Ada", "18.2"), ("Bo", "8")):
+        assert client.post(
+            lisboa + "/players",
+            data={"name": name, "handicap": handicap},
+        ).status_code == 302
+    players = _players(["Ada", "Bo"])
+    trip = client.post(
+        lisboa + "/trips",
+        data={
+            "name": "Høst 2026",
+            "destination_name": "Lisboa",
+            "player_ids": [players["Ada"].id],
+        },
+    ).headers["Location"]
+    with app.app_context():
+        course = GolfCourse(name="Verify Hills", facility="Lisboa")
+        db.session.add(course)
+        db.session.flush()
+        tee = CourseTee(
+            course_id=course.id,
+            name="Gul",
+            gender="Herre",
+            par=72,
+            course_rating=71.2,
+            slope_rating=125,
+        )
+        db.session.add(tee)
+        db.session.commit()
+        course_id = course.id
+        tee_id = tee.id
+    assert client.post(
+        trip + "/rounds",
+        data={
+            "course_id": course_id,
+            "tee_id": tee_id,
+            "play_date": "2026-10-20",
+            "tee_time": "09:30",
+            "pick_up": "Sandvika",
+        },
+    ).status_code == 302
+    with app.app_context():
+        round_id = Round.query.one().id
+        Player.query.filter_by(name="Ada").one().handicap = 5
+        db.session.commit()
+    trip_page = client.get(trip).get_data(as_text=True)
+    strokes_path = f"{trip}/rounds/{round_id}/mottatte-slag"
+    assert f'href="{strokes_path}">Slag mottatt</a>' in trip_page
+    page = client.get(strokes_path)
+    body = page.get_data(as_text=True)
+    assert page.status_code == 200
+    assert "<h1>Slag mottatt</h1>" in body
+    assert "<title>Høst 2026</title>" in body
+    assert "Verify Hills · Gul (Herre)" in body
+    assert "Par 72, CR 71.2, slope 125" in body
+    assert "Ada" in body
+    assert "18.2" in body
+    assert 'class="num">19' in body
+    assert "Bo" not in body
+    assert client.get(f"{other}/trips/{trip.rsplit('/', 1)[-1]}/rounds/{round_id}/mottatte-slag").status_code == 404
