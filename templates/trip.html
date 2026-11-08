@@ -60,11 +60,14 @@
           <span class="entity-row__name">{{ golf_round.course.name }}</span>
           <span class="entity-row__meta">{{ golf_round.display_date }} · {{ golf_round.tee.name }} · {{ golf_round.tee_time }}{% if golf_round.pick_up %} · {{ golf_round.pick_up }}{% endif %}{% if golf_round.kind == 'finale' %} · Finale{% elif golf_round.kind == 'trening' %} · Trening{% endif %}</span>
         </a>
-        {% if golf_round.kind == 'finale' %}
-        <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('show_finale', token=group.slug, trip_id=trip.id) }}">Score</a>
-        {% else %}
-        <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('edit_scores', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">Score</a>
-        {% endif %}
+        <div class="entity-row__actions">
+          <a class="btn btn--small btn--ghost" href="{{ url_for('round_strokes', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">Slag mottatt</a>
+          {% if golf_round.kind == 'finale' %}
+          <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('show_finale', token=group.slug, trip_id=trip.id) }}">Score</a>
+          {% else %}
+          <a class="btn btn--small {% if golf_round.scores %}btn--primary{% else %}btn--ghost{% endif %}" href="{{ url_for('edit_scores', token=group.slug, trip_id=trip.id, round_id=golf_round.id) }}">Score</a>
+          {% endif %}
+        </div>
       </div>
     </li>
     {% endfor %}

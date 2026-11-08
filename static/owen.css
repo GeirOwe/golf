@@ -369,6 +369,13 @@ a:hover {
   min-width: 0;
 }
 
+.entity-row__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .entity-row__main--line {
   flex-direction: row;
   align-items: baseline;
