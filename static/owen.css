@@ -853,6 +853,25 @@ a.entity-row__main {
 }
 
 @media (max-width: 560px) {
+  .entity-row:has(.entity-row__actions) {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 0.7rem;
+  }
+
+  .entity-row:has(.entity-row__actions) .entity-row__main {
+    flex-basis: 100%;
+  }
+
+  .entity-row:has(.entity-row__actions) .entity-row__meta {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .entity-row:has(.entity-row__actions) .entity-row__actions {
+    margin-left: auto;
+  }
+
   .hero {
     padding-top: 1.75rem;
   }
