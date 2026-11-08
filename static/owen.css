@@ -550,18 +550,16 @@ a.entity-row__main {
   z-index: 2;
 }
 
-.sheet th.sheet__action,
-.sheet td.sheet__action {
-  position: sticky;
-  right: 0;
-  z-index: 1;
-  background: #f3f2ee;
-  text-align: right;
-  border-left: 1px solid var(--line);
+.sheet th.sheet__tee,
+.sheet td.sheet__tee {
+  width: 1%;
 }
 
-.sheet thead th.sheet__action {
-  z-index: 2;
+.sheet th.sheet__action,
+.sheet td.sheet__action {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .sheet td:first-child {
@@ -821,7 +819,10 @@ a.entity-row__main {
 }
 
 .sheet .input--name {
-  min-width: 5.5rem;
+  width: 2.55rem;
+  min-width: 2.55rem;
+  max-width: 2.55rem;
+  padding-inline: 0.35rem;
 }
 
 @keyframes rise {
